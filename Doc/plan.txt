@@ -1,0 +1,17 @@
+
+home page    /api/dashBoard
+login        /api/auth/login
+signup       /api/auth/
+
+hospitals    
+Upload doc   
+
+
+schema user {
+    name
+    email
+    password
+    userType
+    gender
+    age
+}
