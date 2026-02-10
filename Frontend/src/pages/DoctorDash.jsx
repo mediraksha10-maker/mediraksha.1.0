@@ -39,15 +39,12 @@ const DoctorDash = () => {
                 <Link to="/doctordash">Home</Link>
               </li>
               <li>
-                <details>
-                  <summary>Services</summary>
-                  <ul className="p-2" />
-                </details>
+                <Link to='/patients'>Patients</Link>
               </li>
             </ul>
           </div>
 
-          <span className="mx-2 font-bold text-2xl">MediRaksha</span>
+          <span className="mx-2 font-bold text-2xl">MediRaksha <span className="text-secondary">Doctor Account</span></span>
         </div>
 
         <div className="navbar-center hidden lg:flex">
@@ -56,16 +53,13 @@ const DoctorDash = () => {
               <Link to="/doctordash">Home</Link>
             </li>
             <li>
-              <details>
-                <summary>Services</summary>
-                <ul className="p-2 z-50" />
-              </details>
+              <Link to='/patients'>Patients</Link>
             </li>
           </ul>
         </div>
 
         <div className="navbar-end">
-          <Link to="/doctor">
+          <Link to="/doctorprofile">
             <div className="btn">
               <User />
               Profile

@@ -73,6 +73,9 @@ export default function Navbar() {
                 <li>
                   <Link to="/doctoravailable">Doctor Availability</Link>
                 </li>
+                <li>
+                  <Link to="/mydoctor">Search for doctor</Link>
+                </li>
               </ul>
             </details>
           </li>

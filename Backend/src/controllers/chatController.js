@@ -1,23 +1,67 @@
+// import OpenAI from "openai";
+
+// const client = new OpenAI({
+//   apiKey: process.env.OPENAI_API_KEY,
+// });
+
+// export const chatWithAI = async (req, res) => {
+//   try {
+//     const { message } = req.body;
+
+//     const response = await client.chat.completions.create({
+//       model: "gpt-4.1",
+//       messages: [
+//         {
+//           role: "system",
+//           content: `
+// You are a healthcare assistant.
+// DO NOT diagnose diseases.
+// Suggest precautions, lifestyle advice, and when to see a doctor.
+// Always add a medical disclaimer.
+//           `,
+//         },
+//         {
+//           role: "user",
+//           content: message,
+//         },
+//       ],
+//     });
+
+//     const reply = response.choices[0].message.content;
+
+//     res.json({ reply });
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ error: "AI service failed" });
+//   }
+// };
+
 import OpenAI from "openai";
 
 const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: process.env.GROQ_API_KEY,
+  baseURL: "https://api.groq.com/openai/v1",
 });
 
 export const chatWithAI = async (req, res) => {
   try {
     const { message } = req.body;
 
+    if (!message) {
+      return res.status(400).json({ error: "Message is required" });
+    }
+
     const response = await client.chat.completions.create({
-      model: "gpt-4.1",
+      model: "llama-3.1-8b-instant", // ✅ FIXED MODEL
       messages: [
         {
           role: "system",
           content: `
 You are a healthcare assistant.
 DO NOT diagnose diseases.
-Suggest precautions, lifestyle advice, and when to see a doctor.
-Always add a medical disclaimer.
+Provide general health tips, precautions, and lifestyle advice.
+Clearly say when the user should consult a doctor.
+Always add a medical disclaimer at the end. Within 2 or 3 lines.
           `,
         },
         {
@@ -25,13 +69,15 @@ Always add a medical disclaimer.
           content: message,
         },
       ],
+      temperature: 0.6,
+      max_tokens: 500,
     });
 
-    const reply = response.choices[0].message.content;
-
-    res.json({ reply });
+    res.json({
+      reply: response.choices[0].message.content,
+    });
   } catch (err) {
-    console.error(err);
+    console.error("Groq Error:", err);
     res.status(500).json({ error: "AI service failed" });
   }
 };

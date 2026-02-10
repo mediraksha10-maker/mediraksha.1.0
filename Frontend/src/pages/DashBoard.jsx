@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import axiosInstance from "../api/axios";
 import car1 from '../assets/car1.jpg';
 import car2 from '../assets/car21.png';
-import car3 from '../assets/car2.jpg';
 
 import { Hospital, ClipboardMinus, FileClock, Brain, CalendarCheck2, Bed } from "lucide-react";
 // import toast from "react-hot-toast";
@@ -62,7 +61,7 @@ const quickActions = [
 ];
 
 export default function Dashboard() {
-  const [name, setName] = useState("Sign up to access features"); 
+  const [name, setName] = useState("Sign up to access features");
 
   const getUser = async () => {
     try {
@@ -73,9 +72,19 @@ export default function Dashboard() {
       console.error(error.response?.data?.msg || "Error fetching user details");
     }
   };
+  const getDoctor = async () => {
+    try {
+      const res = await axiosInstance.get('/doctor');
+      const data = res.data;
+      window.location.href = '/doctordash';
+    } catch (error) {
+      console.error(error.response?.data?.msg || "Error fetching user details");
+    }
+  }
 
 
   useEffect(() => {
+    getDoctor();
     getUser();
   }, []);
 
@@ -105,7 +114,7 @@ export default function Dashboard() {
               src={car1}
               className="w-full" />
             <div className="absolute left-5 right-5 top-1/2 flex -translate-y-1/2 transform justify-between">
-              <a href="#slide4" className="btn btn-circle">❮</a>
+              <a href="#slide2" className="btn btn-circle">❮</a>
               <a href="#slide2" className="btn btn-circle">❯</a>
             </div>
           </div>
@@ -115,15 +124,6 @@ export default function Dashboard() {
               className="w-full" />
             <div className="absolute left-5 right-5 top-1/2 flex -translate-y-1/2 transform justify-between">
               <a href="#slide1" className="btn btn-circle">❮</a>
-              <a href="#slide3" className="btn btn-circle">❯</a>
-            </div>
-          </div>
-          <div id="slide3" className="carousel-item relative w-full">
-            <img
-              src={car3}
-              className="w-full" />
-            <div className="absolute left-5 right-5 top-1/2 flex -translate-y-1/2 transform justify-between">
-              <a href="#slide2" className="btn btn-circle">❮</a>
               <a href="#slide1" className="btn btn-circle">❯</a>
             </div>
           </div>
@@ -133,7 +133,7 @@ export default function Dashboard() {
         {/* Quick Actions Section */}
         <section>
           <h2 className="text-2xl font-semibold mb-6 text-base-content">
-            Quick Access to Services 
+            Quick Access to Services
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {quickActions.map((action) => (

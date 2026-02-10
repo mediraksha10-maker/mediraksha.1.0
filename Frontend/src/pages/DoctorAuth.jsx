@@ -35,9 +35,18 @@ const DoctorAuth = () => {
         password,
       });
 
-      toast.success("Welcome back, Doctor 👨‍⚕️");
+      toast.success("Welcome back, Doctor");
 
-      window.location.href = "/doctordash";
+      const res = await axiosInstance.get('/doctor');
+
+      const data = res.data; 
+
+      if (!data.name || !data.hospital || !data.age) {
+        window.location.href = "/doctordetail";
+      } else {
+        window.location.href = "/doctordash";
+      }
+      
     } catch (error) {
       toast.error(
         error.response?.data?.message ||
