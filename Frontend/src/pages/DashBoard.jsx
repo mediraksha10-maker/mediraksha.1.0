@@ -6,7 +6,7 @@ import axiosInstance from "../api/axios";
 import car1 from '../assets/car1.jpg';
 import car2 from '../assets/car21.png';
 
-import { Hospital, ClipboardMinus, FileClock, Brain, CalendarCheck2, Bed } from "lucide-react";
+import { Brain, Hospital } from "lucide-react";
 // import toast from "react-hot-toast";
 // Placeholder data for demonstration 
 const quickActions = [
@@ -20,43 +20,11 @@ const quickActions = [
   },
   {
     id: 2,
-    title: "Upload Medical Reports",
-    icon: <ClipboardMinus />,
-    description: "Securely upload and manage reports.",
-    style: "btn-secondary",
-    view: "/upload",
-  },
-  {
-    id: 3,
-    title: "View Health Summary",
-    icon: <FileClock />,
-    description: "See history and recent interactions.",
-    style: "btn-accent",
-    view: "/history",
-  },
-  {
-    id: 4,
     title: "AI chat",
     icon: <Brain />,
     description: "Ask the ai about the symtoms and get cured",
     style: "btn-neutral",
     view: "/ai",
-  },
-  {
-    id: 5,
-    title: "Book an Appointment",
-    icon: <CalendarCheck2 />,
-    description: "Book an appointment with specilist pratitioners.",
-    style: "btn-info",
-    view: "/appointment",
-  },
-  {
-    id: 6,
-    title: "Bed availability",
-    icon: <Bed />,
-    description: "See the bed available in the hospitals.",
-    style: "btn-success",
-    view: "/bedavailable",
   },
 ];
 

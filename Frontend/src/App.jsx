@@ -17,6 +17,7 @@ import DoctorDash from './pages/DoctorDash';
 import DoctorAvailability from './pages/DoctorAvailability';
 import BedAvailability from './pages/BedAvailability';
 import DoctorDetails from './pages/DoctorDetail';
+import Service from "./pages/Service";
 
 // component imports
 import Upload from './components/Upload'
@@ -64,6 +65,8 @@ export default function App() {
         <Route path='/ai' element={<Chatbot />} />
         <Route path='/bedavailable' element={<BedAvailability />} />
         <Route path='/history' element={<HealthSummary/>} />
+        <Route path='/services' element={<Service/>} />
+        
 
         {/* Doctor related routes */}
         <Route path='/doctor' element={<DoctorAuth />} />

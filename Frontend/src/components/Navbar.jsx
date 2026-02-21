@@ -33,7 +33,8 @@ export default function Navbar() {
               <Link to="/">Home</Link>
             </li>
             <li>
-              <details>
+              <Link to="/services">Services</Link>
+              {/* <details>
                 <summary>Services</summary>
                 <ul className="p-2 z-1">
                   <li>
@@ -46,7 +47,7 @@ export default function Navbar() {
                     <Link to="/doctoravailable">Doctor Availability</Link>
                   </li>
                 </ul>
-              </details>
+              </details> */}
             </li>
             <li>
               <Link to="/about">About</Link>
@@ -61,7 +62,10 @@ export default function Navbar() {
             <Link to="/">Home</Link>
           </li>
           <li>
-            <details>
+            
+            <Link to="/services">Services</Link>
+            
+            {/* <details>
               <summary>Services</summary>
               <ul className="p-2 z-50">
                 <li>
@@ -77,7 +81,7 @@ export default function Navbar() {
                   <Link to="/mydoctor">Search for doctor</Link>
                 </li>
               </ul>
-            </details>
+            </details> */}
           </li>
           <li>
             <Link to="/about">About</Link>
