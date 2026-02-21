@@ -1,79 +1,99 @@
-import React from "react";
+import { Phone, Mail, Building2, Star, CalendarPlus, UserMinus } from "lucide-react";
+import { useNavigate } from "react-router";
 
-const RegisteredDoctor = ({ doctor, onSearch }) => {
-  // If no doctor is registered
+export default function RegisteredDoctor({ doctor, onRemove, onChangeClick }) {
+  const navigate = useNavigate();
+
   if (!doctor) {
     return (
-      <div style={styles.container}>
-        <h2 style={styles.heading}>My Registered Doctor</h2>
-        <p style={styles.noDoctor}>You are not registered with any doctor yet.</p>
-        <button style={styles.searchBtn} onClick={onSearch}>
-          Search for Doctors
-        </button>
+      <div className="card bg-base-200 border border-dashed border-base-300">
+        <div className="card-body items-center text-center py-10">
+          <div className="text-5xl mb-2">🩺</div>
+          <h3 className="card-title text-base-content/60">No Doctor Registered</h3>
+          <p className="text-sm text-base-content/40">
+            Search and register a primary doctor to get started.
+          </p>
+          <button className="btn btn-primary btn-sm mt-2" onClick={onChangeClick}>
+            Find a Doctor
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={styles.container}>
-      <h2 style={styles.heading}>My Registered Doctor</h2>
+    <div className="card bg-base-100 shadow border border-base-300">
+      <div className="card-body gap-4">
+        {/* Header */}
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-4">
+            <div className="avatar placeholder">
+              <div className="bg-primary text-primary-content rounded-full w-14">
+                <span className="text-xl font-bold">
+                  {doctor.name?.[0]?.toUpperCase()}
+                </span>
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg font-bold">Dr. {doctor.name}</h3>
+                <span className="badge badge-success badge-sm">Your Doctor</span>
+              </div>
+              <p className="text-sm text-primary font-medium">{doctor.specialization}</p>
+            </div>
+          </div>
+        </div>
 
-      <div style={styles.card}>
-        <h3 style={styles.name}>Dr. {doctor.name}</h3>
-        <p><strong>Specialization:</strong> {doctor.specialization}</p>
-        <p><strong>Hospital:</strong> {doctor.hospital}</p>
-        <p><strong>Experience:</strong> {doctor.experience} years</p>
-        <p><strong>Contact:</strong> {doctor.contact}</p>
-        <p><strong>Email:</strong> {doctor.email}</p>
+        {/* Info grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+          {doctor.hospital && (
+            <div className="flex items-center gap-2 text-base-content/70">
+              <Building2 size={15} className="text-primary" />
+              <span>{doctor.hospital}</span>
+            </div>
+          )}
+          {doctor.experience && (
+            <div className="flex items-center gap-2 text-base-content/70">
+              <Star size={15} className="text-warning" />
+              <span>{doctor.experience} years experience</span>
+            </div>
+          )}
+          {doctor.contact && (
+            <div className="flex items-center gap-2 text-base-content/70">
+              <Phone size={15} className="text-success" />
+              <span>{doctor.contact}</span>
+            </div>
+          )}
+          {doctor.email && (
+            <div className="flex items-center gap-2 text-base-content/70">
+              <Mail size={15} className="text-info" />
+              <span className="truncate">{doctor.email}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="card-actions justify-end pt-1 gap-2">
+          <button
+            className="btn btn-ghost btn-sm text-error gap-1"
+            onClick={onRemove}
+          >
+            <UserMinus size={15} /> Remove
+          </button>
+          <button
+            className="btn btn-outline btn-sm gap-1"
+            onClick={onChangeClick}
+          >
+            Change Doctor
+          </button>
+          <button
+            className="btn btn-primary btn-sm gap-1"
+            onClick={() => navigate("/appointments")}
+          >
+            <CalendarPlus size={15} /> Book Appointment
+          </button>
+        </div>
       </div>
-
-      <button style={styles.searchBtn} onClick={onSearch}>
-        Search for Doctors
-      </button>
     </div>
   );
-};
-
-export default RegisteredDoctor;
-
-/* ================== STYLES ================== */
-
-const styles = {
-  container: {
-    maxWidth: "600px",
-    margin: "40px auto",
-    padding: "20px",
-    fontFamily: "Arial, sans-serif",
-    textAlign: "center",
-  },
-  heading: {
-    marginBottom: "20px",
-    color: "#2c3e50",
-  },
-  card: {
-    backgroundColor: "#f8f9fa",
-    padding: "20px",
-    borderRadius: "12px",
-    boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
-    marginBottom: "20px",
-    textAlign: "left",
-  },
-  name: {
-    marginBottom: "10px",
-    color: "#007bff",
-  },
-  searchBtn: {
-    padding: "10px 20px",
-    fontSize: "16px",
-    borderRadius: "8px",
-    border: "none",
-    cursor: "pointer",
-    backgroundColor: "#007bff",
-    color: "#fff",
-    transition: "0.3s",
-  },
-  noDoctor: {
-    marginBottom: "20px",
-    color: "#555",
-  },
-};
+}

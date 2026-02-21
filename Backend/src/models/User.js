@@ -22,6 +22,11 @@ const schema = new mongoose.Schema(
     age: {
       type: Number,
       required: false,
+    },
+    registeredDoctor : {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "doctor",
+      default: null,
     }
   },
   { timestamps: true }
