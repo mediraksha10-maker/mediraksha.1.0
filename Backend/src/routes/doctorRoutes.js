@@ -1,7 +1,16 @@
 import express from "express";
 import doctor from '../models/Doctor.js';
 
+
+import { getDoctorAppointments, updateAppointmentStatus } from "../controllers/appointmentController.js";
+
+
 const router = express.Router();
+
+router.get("/appointments", getDoctorAppointments);
+router.patch("/appointments/:id", updateAppointmentStatus);
+
+
 
 router.get('/', async (req, res) => {
     try {
