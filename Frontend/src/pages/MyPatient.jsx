@@ -1,119 +1,212 @@
-import { useState } from "react";
-import { ArrowLeft } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ArrowLeft, ChevronDown, ChevronUp, Calendar, Clock, User2 } from "lucide-react";
 import { Link } from "react-router";
+import axiosInstance from "../api/axios"; // adjust path
 
-export default function DoctorPatients() {
-    // 🔹 Mock data (replace with API later)
-    const [patients] = useState([
-        {
-            patientId: "P001",
-            name: "John Doe",
-            age: 45,
-            diagnosis: "Diabetes Type 2",
-            reports: [
-                {
-                    reportId: "R101",
-                    title: "Blood Sugar Report",
-                    result: "High",
-                    date: "2025-01-12",
-                },
-                {
-                    reportId: "R102",
-                    title: "HbA1c Test",
-                    result: "7.8%",
-                    date: "2025-01-15",
-                },
-            ],
-        },
-        {
-            patientId: "P002",
-            name: "Jane Smith",
-            age: 32,
-            diagnosis: "Migraine",
-            reports: [
-                {
-                    reportId: "R201",
-                    title: "MRI Scan",
-                    result: "Normal",
-                    date: "2025-01-18",
-                },
-            ],
-        },
-    ]);
+const STATUS_STYLE = {
+  pending:   "badge-warning",
+  confirmed: "badge-success",
+  cancelled: "badge-error",
+};
 
-    return (
-        <div className="min-h-screen bg-base-200 p-6">
+export default function MyPatients() {
+  const [patients, setPatients]     = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [expanded, setExpanded]     = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
-            <h1 className="text-3xl font-bold text-center mb-6">
-                <Link to="/doctordash" className="text-gray-500 hover:text-gray-700">
-                    <ArrowLeft size={24} />
-                </Link>
-                My Patients
-            </h1>
+  useEffect(() => {
+    fetchPatients();
+  }, []);
 
-            <div className="grid gap-6 max-w-5xl mx-auto">
-                {patients.map((patient) => (
-                    <div
-                        key={patient.patientId}
-                        className="card bg-base-100 shadow-xl p-5"
-                    >
-                        {/* Patient Info */}
-                        <div className="mb-3">
-                            <h2 className="text-xl font-bold">
-                                {patient.name}
-                            </h2>
-                            <p>
-                                <b>Patient ID:</b> {patient.patientId}
-                            </p>
-                            <p>
-                                <b>Age:</b> {patient.age}
-                            </p>
-                            <p>
-                                <b>Diagnosis:</b>{" "}
-                                <span className="text-primary font-semibold">
-                                    {patient.diagnosis}
-                                </span>
-                            </p>
-                        </div>
+  const fetchPatients = async () => {
+    setLoading(true);
+    try {
+      const { data } = await axiosInstance.get("/doctor/patients");
+      setPatients(data);
+    } catch (err) {
+      console.error("Failed to fetch patients", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-                        {/* Reports */}
-                        <div>
-                            <h3 className="text-lg font-bold mb-2">
-                                Medical Reports
-                            </h3>
+  const filtered = patients.filter((p) =>
+    p.name?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-                            {patient.reports.length === 0 ? (
-                                <p className="text-gray-500">
-                                    No reports available
-                                </p>
-                            ) : (
-                                <div className="overflow-x-auto">
-                                    <table className="table table-zebra w-full">
-                                        <thead>
-                                            <tr>
-                                                <th>Report ID</th>
-                                                <th>Title</th>
-                                                <th>Result</th>
-                                                <th>Date</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {patient.reports.map((report) => (
-                                                <tr key={report.reportId}>
-                                                    <td>{report.reportId}</td>
-                                                    <td>{report.title}</td>
-                                                    <td>{report.result}</td>
-                                                    <td>{report.date}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                ))}
-            </div>
+  const toggle = (id) => setExpanded((prev) => (prev === id ? null : id));
+
+  return (
+    <div className="max-w-3xl mx-auto p-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <Link to="/doctordash" className="text-gray-500 hover:text-gray-700">
+          <ArrowLeft size={24} />
+        </Link>
+        <h1 className="text-2xl font-bold">My Patients</h1>
+        <span className="badge badge-primary ml-1">{patients.length}</span>
+      </div>
+
+      {/* Search */}
+      <input
+        type="text"
+        placeholder="Search patient by name..."
+        className="input input-bordered w-full"
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+      />
+
+      {/* List */}
+      {loading ? (
+        <div className="flex justify-center py-16">
+          <span className="loading loading-spinner loading-lg" />
         </div>
-    );
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-16 space-y-2">
+          <p className="text-4xl">🧑‍⚕️</p>
+          <p className="text-base-content/50">
+            {searchTerm ? "No patients match your search." : "No patients registered yet."}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map((patient) => {
+            const isOpen = expanded === patient._id;
+            const upcoming = patient.appointments?.filter(
+              (a) => a.status !== "cancelled" && new Date(a.date) >= new Date()
+            );
+            const past = patient.appointments?.filter(
+              (a) => a.status === "cancelled" || new Date(a.date) < new Date()
+            );
+
+            return (
+              <div
+                key={patient._id}
+                className="bg-base-100 border border-base-300 rounded-xl overflow-hidden shadow-sm"
+              >
+                {/* Patient row */}
+                <div
+                  className="flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-base-200 transition-colors"
+                  onClick={() => toggle(patient._id)}
+                >
+                  <div className="flex items-center gap-4">
+                    {/* Avatar */}
+                    <div className="avatar placeholder">
+                      <div className="bg-primary text-primary-content rounded-full w-12">
+                        <span className="text-lg font-bold">
+                          {patient.name?.[0]?.toUpperCase() ?? "?"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Info */}
+                    <div>
+                      <p className="font-semibold text-base">{patient.name}</p>
+                      <div className="flex gap-3 text-xs text-base-content/50 mt-0.5">
+                        {patient.age && (
+                          <span className="flex items-center gap-1">
+                            <User2 size={11} /> {patient.age} yrs
+                          </span>
+                        )}
+                        {patient.gender && (
+                          <span className="capitalize">{patient.gender}</span>
+                        )}
+                        {patient.email && (
+                          <span className="hidden sm:inline">{patient.email}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    {/* Appointment count pill */}
+                    <span className="badge badge-ghost text-xs">
+                      <Calendar size={11} className="mr-1" />
+                      {patient.appointments?.length ?? 0} visits
+                    </span>
+                    {isOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                  </div>
+                </div>
+
+                {/* Expanded appointment history */}
+                {isOpen && (
+                  <div className="border-t border-base-300 px-5 py-4 bg-base-50 space-y-4">
+
+                    {/* Upcoming */}
+                    {upcoming?.length > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold text-base-content/40 uppercase tracking-wide mb-2">
+                          Upcoming
+                        </p>
+                        <div className="space-y-2">
+                          {upcoming.map((appt) => (
+                            <AppointmentRow key={appt._id} appt={appt} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Past */}
+                    {past?.length > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold text-base-content/40 uppercase tracking-wide mb-2">
+                          Past / Cancelled
+                        </p>
+                        <div className="space-y-2">
+                          {past.map((appt) => (
+                            <AppointmentRow key={appt._id} appt={appt} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* No appointments */}
+                    {patient.appointments?.length === 0 && (
+                      <p className="text-sm text-base-content/40 text-center py-2">
+                        No appointment history yet.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
+
+/* ── Small appointment row sub-component ── */
+function AppointmentRow({ appt }) {
+  return (
+    <div className="flex items-center justify-between bg-base-200 rounded-lg px-3 py-2 text-sm">
+      <div className="flex items-center gap-3">
+        <Calendar size={14} className="text-primary shrink-0" />
+        <div>
+          <span className="font-medium">
+            {new Date(appt.date).toLocaleDateString("en-IN", {
+              day: "numeric", month: "short", year: "numeric",
+            })}
+          </span>
+          <span className="text-base-content/50 ml-2 text-xs">
+            <Clock size={11} className="inline mr-0.5" />
+            {appt.startTime}
+          </span>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        {appt.reason && (
+          <span className="text-xs text-base-content/40 hidden sm:inline truncate max-w-32">
+            {appt.reason}
+          </span>
+        )}
+        <span className={`badge badge-sm ${STATUS_STYLE[appt.status]}`}>
+          {appt.status}
+        </span>
+      </div>
+    </div>
+  );
+}
+

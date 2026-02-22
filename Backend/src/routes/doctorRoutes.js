@@ -89,4 +89,15 @@ router.patch('/update', async (req, res) => {
     }
 });
 
+
+import {
+  getMyPatients,           // 👈 add this
+} from "../controllers/doctorController.js";
+
+
+router.get("/appointments", getDoctorAppointments);
+router.patch("/appointments/:id", updateAppointmentStatus);
+router.get("/patients", getMyPatients);              // 👈 add this
+
+
 export default router;

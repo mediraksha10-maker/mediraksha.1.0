@@ -23,14 +23,16 @@ const schema = new mongoose.Schema(
       type: Number,
       required: false,
     },
-    registeredDoctor : {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "doctor",
-      default: null,
-    }
+    registeredDoctors: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "doctor",
+      },
+    ],
   },
   { timestamps: true }
 );
+
 
 const User = mongoose.model("UserMR", schema);
 export default User;
