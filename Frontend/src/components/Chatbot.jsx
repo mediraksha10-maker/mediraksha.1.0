@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import axiosInstance from "../api/axios";
-import { Send, Bot, User, AlertTriangle, ArrowLeft } from "lucide-react";
+import { Send, Bot, User, AlertTriangle, ArrowLeft, Loader2 } from "lucide-react";
 import { Link } from "react-router";
 
 export default function AiHealthChatbot() {
@@ -9,9 +9,16 @@ export default function AiHealthChatbot() {
   const [messages, setMessages] = useState([
     {
       role: "ai",
-      text: "Hi I’m your health assistant. Tell me your symptoms and I’ll guide you on what to do next.",
+      text: "Hi, I’m your health assistant. Tell me your symptoms and I’ll guide you on what to do next.",
     },
   ]);
+
+  const messagesEndRef = useRef(null);
+
+  // Auto scroll to bottom
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, loading]);
 
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
@@ -46,91 +53,90 @@ export default function AiHealthChatbot() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-base-200">
-      <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-6">
-        {/* Header */}
-        <div className="mb-4">
-          <Link to="/" className="text-gray-500 hover:text-gray-700">
-            <ArrowLeft size={24} />
-          </Link>
-          <h1 className="text-3xl font-bold text-base-content">
-            AI Health Assistant
-          </h1>
-          <p className="text-sm text-base-content/70 mt-1">
-            Describe your symptoms to receive general guidance.
-          </p>
+    <div className="flex flex-col h-screen bg-base-200">
+      
+      {/* Header */}
+      <div className="navbar bg-base-100 shadow-sm px-3 sm:px-6">
+        <Link to="/" className="btn btn-ghost btn-circle">
+          <ArrowLeft size={22} />
+        </Link>
+        <div className="flex-1">
+          <h1 className="text-lg sm:text-xl font-bold">AI Health Assistant</h1>
         </div>
+      </div>
 
-        {/* Disclaimer */}
-        <div className="alert alert-warning mb-4">
-          <AlertTriangle size={18} />
-          <span className="text-sm">
-            This chatbot does not provide medical diagnosis. Always consult a
-            certified doctor.
+      {/* Disclaimer */}
+      <div className="px-3 sm:px-6 mt-2">
+        <div className="alert alert-warning text-xs sm:text-sm">
+          <AlertTriangle size={16} />
+          <span>
+            This chatbot gives general guidance only. Always consult a certified doctor.
           </span>
         </div>
+      </div>
 
-        {/* Chat Box */}
-        <div className="bg-base-100 rounded-xl shadow p-4 h-[60vh] overflow-y-auto space-y-4">
-          {messages.map((msg, index) => (
-            <div
-              key={index}
-              className={`flex ${
-                msg.role === "user" ? "justify-end" : "justify-start"
-              }`}
-            >
-              <div
-                className={`max-w-[75%] p-3 rounded-xl text-sm leading-relaxed ${
-                  msg.role === "user"
-                    ? "bg-primary text-primary-content"
-                    : "bg-base-300 text-base-content"
-                }`}
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  {msg.role === "user" ? (
-                    <User size={14} />
-                  ) : (
-                    <Bot size={14} />
-                  )}
-                  <span className="font-semibold">
-                    {msg.role === "user" ? "You" : "Assistant"}
-                  </span>
-                </div>
-                {msg.text}
+      {/* Chat Area */}
+      <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 space-y-2">
+        {messages.map((msg, index) => (
+          <div
+            key={index}
+            className={`chat ${
+              msg.role === "user" ? "chat-end" : "chat-start"
+            }`}
+          >
+            <div className="chat-image avatar placeholder">
+              <div className="bg-neutral text-neutral-content rounded-full w-8">
+                {msg.role === "user" ? (
+                  <User size={16} className="m-auto" />
+                ) : (
+                  <Bot size={16} className="m-auto" />
+                )}
               </div>
             </div>
-          ))}
 
-          {loading && (
-            <div className="flex justify-start">
-              <div className="bg-base-300 p-3 rounded-xl text-sm">
-                Typing...
-              </div>
+            <div className="chat-bubble text-sm sm:text-base">
+              {msg.text}
             </div>
-          )}
-        </div>
+          </div>
+        ))}
 
-        {/* Input Area */}
-        <div className="mt-4 flex gap-2">
+        {loading && (
+          <div className="chat chat-start">
+            <div className="chat-bubble flex items-center gap-2">
+              <Loader2 className="animate-spin" size={16} />
+              Typing...
+            </div>
+          </div>
+        )}
+
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Input Area (Sticky Bottom) */}
+      <div className="bg-base-100 border-t p-3 sm:p-4">
+        <div className="flex gap-2 max-w-4xl mx-auto">
           <input
             type="text"
             placeholder="Describe your symptoms..."
-            className="input input-bordered flex-1"
+            className="input input-bordered flex-1 text-sm sm:text-base"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") sendMessage();
-            }}
+            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
           />
+
           <button
-            className="btn btn-primary"
+            className="btn btn-primary btn-square"
             onClick={sendMessage}
-            disabled={loading}
+            disabled={loading || !input.trim()}
           >
-            <Send size={18} />
+            {loading ? (
+              <Loader2 className="animate-spin" size={18} />
+            ) : (
+              <Send size={18} />
+            )}
           </button>
         </div>
-      </main>
+      </div>
     </div>
   );
 }
