@@ -1,19 +1,2 @@
-Description
-api routes
-
-home page    /api/dashBoard
-login        /api/auth/login
-signup       /api/auth/
-
-hospitals    
-Upload doc   
-
-database schemas
-schema user {
-    name
-    email
-    password
-    userType
-    gender
-    age
-}
+click to view
+https://docs.google.com/presentation/d/1Nge4o9G8OfphnUkFbRHjNChZUioz2pq8g1wgUvzRtHI/edit?usp=sharing
