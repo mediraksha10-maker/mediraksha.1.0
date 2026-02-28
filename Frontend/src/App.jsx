@@ -3,32 +3,37 @@ import { useState, useEffect } from "react";
 import { Toaster } from 'react-hot-toast';
 import { Route, Routes } from 'react-router';
 
-// splash screen
-import Splash from './components/Splash';
 
 // page imports
 import Dashboard from './pages/DashBoard';
-import Auth from './pages/Auth';
 import About from "./pages/About";
-import MyPatient from './pages/MyPatient';
-import DetailConfirmation from './pages/DetailConfirmation'
-import DoctorAuth from './pages/DoctorAuth';
-import DoctorDash from './pages/DoctorDash';
-import DoctorAvailability from './pages/DoctorAvailability';
-import BedAvailability from './pages/BedAvailability';
-import DoctorDetails from './pages/DoctorDetail';
 import Service from "./pages/Service";
 
-// component imports
-import Upload from './components/Upload'
-import MyDetail from './components/MyDet';
-import Map from './components/MapComponent'
-import HealthSummary from './components/HealthSummary';
-import AppointmentCalendar from './components/Appointment';
-import Chatbot from './components/Chatbot';
-import DoctorDet from './components/DoctorDet'
-import MyDoctor from './components/MyDoctor';
 
+// component imports
+import Splash from './components/Splash';
+
+
+// doctor page imports
+import DoctorDet from './doctor/DoctorDet'
+import DoctorDetails from './doctor/DoctorDetail';
+import MyPatient from './doctor/MyPatient';
+import DoctorAuth from './doctor/DoctorAuth';
+import DoctorDash from './doctor/DoctorDash';
+
+
+// patient page imports
+import HealthSummary from './patient/HealthSummary';
+import AppointmentCalendar from './patient/Appointment';
+import Chatbot from './patient/Chatbot';
+import Upload from './patient/Upload'
+import MyDetail from './patient/MyDet';
+import Map from './patient/MapComponent'
+import MyDoctor from './patient/MyDoctor';
+import Auth from './patient/Auth';
+import DetailConfirmation from './patient/DetailConfirmation'
+import DoctorAvailability from './patient/DoctorAvailability';
+import BedAvailability from './patient/BedAvailability';
 
 
 export default function App() {

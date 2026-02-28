@@ -1,7 +1,7 @@
 import { User } from "lucide-react";
 import { Link } from "react-router";
-import AddAvailability from "./AddAvailability";
-import MeetingRequests from "./MeetingRequests"; // 👈 import
+import AddAvailability from "../doctor/AddAvailability";
+import MeetingRequests from "../doctor/MeetingRequests"; // 👈 import
 
 const DoctorDash = () => {
   return (

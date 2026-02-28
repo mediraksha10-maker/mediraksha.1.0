@@ -1,7 +1,7 @@
 import express from "express";
 import doctor from '../models/Doctor.js';
 
-
+import { getMyPatients } from "../controllers/doctorController.js";
 import { getDoctorAppointments, updateAppointmentStatus } from "../controllers/appointmentController.js";
 
 
@@ -11,10 +11,10 @@ router.get("/appointments", getDoctorAppointments);
 router.patch("/appointments/:id", updateAppointmentStatus);
 
 
-
+// doctor profile
 router.get('/', async (req, res) => {
     try {
-        const myDet = await doctor.findById(req.user).select("-password"); // exclude password
+        const myDet = await doctor.findById(req.user).select("-password");
         if (!myDet) {
             return res.status(404).json({ msg: 'Doctor not found' });
         }
@@ -90,14 +90,11 @@ router.patch('/update', async (req, res) => {
 });
 
 
-import {
-  getMyPatients,           // 👈 add this
-} from "../controllers/doctorController.js";
 
-
+// appointments
 router.get("/appointments", getDoctorAppointments);
 router.patch("/appointments/:id", updateAppointmentStatus);
-router.get("/patients", getMyPatients);              // 👈 add this
+router.get("/patients", getMyPatients);     
 
 
 export default router;
