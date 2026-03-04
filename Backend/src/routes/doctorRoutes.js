@@ -7,8 +7,6 @@ import { getDoctorAppointments, updateAppointmentStatus } from "../controllers/a
 
 const router = express.Router();
 
-router.get("/appointments", getDoctorAppointments);
-router.patch("/appointments/:id", updateAppointmentStatus);
 
 
 // doctor profile
@@ -88,8 +86,6 @@ router.patch('/update', async (req, res) => {
         res.status(500).json({ msg: 'Server error' });
     }
 });
-
-
 
 // appointments
 router.get("/appointments", getDoctorAppointments);
