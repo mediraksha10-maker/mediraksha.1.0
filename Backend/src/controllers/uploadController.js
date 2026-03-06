@@ -10,8 +10,17 @@ conn.once('open', () => {
 
 export async function uploadFile(req, res) {
   try {
+    if (!bucket) {
+      return res.status(503).json({ msg: 'Upload service unavailable' });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ msg: 'No file received' });
+    }
+
     const uploadStream = bucket.openUploadStream(req.file.originalname, {
-      metadata: { userId: req.user },
+      contentType: req.file.mimetype,
+      metadata: { userId: req.user, mimeType: req.file.mimetype },
     });
     uploadStream.end(req.file.buffer);
 
@@ -26,6 +35,10 @@ export async function uploadFile(req, res) {
 
 export async function getAllFiles (req, res) {
   try {
+    if (!bucket) {
+      return res.status(503).json({ msg: 'File service unavailable' });
+    }
+
     const files = await bucket.find({ 'metadata.userId': req.user }).toArray();
     if (!files.length) return res.status(404).json({ msg: 'No files found' });
     res.json(files);
@@ -37,6 +50,10 @@ export async function getAllFiles (req, res) {
 
 export async function getFileById (req, res) {
   try {
+    if (!bucket) {
+      return res.status(503).json({ msg: 'File service unavailable' });
+    }
+
     const file = await bucket
       .find({ _id: new mongoose.Types.ObjectId(req.params.id) })
       .toArray();
@@ -47,6 +64,8 @@ export async function getFileById (req, res) {
       return res.status(403).json({ msg: 'Access denied' });
     }
 
+    res.setHeader('Content-Type', file[0].contentType || file[0]?.metadata?.mimeType || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `inline; filename="${file[0].filename}"`);
     const downloadStream = bucket.openDownloadStream(file[0]._id);
     downloadStream.pipe(res);
   } catch (err) {
@@ -58,6 +77,10 @@ export async function getFileById (req, res) {
 
 export async function deleteFile (req, res) {
   try {
+    if (!bucket) {
+      return res.status(503).json({ msg: 'File service unavailable' });
+    }
+
     const file = await bucket
       .find({ _id: new mongoose.Types.ObjectId(req.params.id) })
       .toArray();

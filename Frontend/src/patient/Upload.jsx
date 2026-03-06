@@ -3,6 +3,16 @@ import axiosInstance from '../api/axios';
 import { ArrowLeft } from "lucide-react";
 import { Link } from "react-router";
 
+const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
+const ALLOWED_MIME_TYPES = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+  "image/bmp",
+]);
+
 export default function UploadReport() {
   const [file, setFile] = useState(null);
   const [message, setMessage] = useState('');
@@ -26,10 +36,31 @@ export default function UploadReport() {
     fetchFiles();
   }, []);
 
-  const handleFileChange = (e) => setFile(e.target.files[0]);
+  const handleFileChange = (e) => {
+    const selected = e.target.files?.[0];
+    if (!selected) return;
+
+    if (!ALLOWED_MIME_TYPES.has(selected.type)) {
+      setMessage("Only PDF and image files are allowed");
+      setFile(null);
+      return;
+    }
+
+    if (selected.size > MAX_FILE_SIZE_BYTES) {
+      setMessage("File size must be 5MB or less");
+      setFile(null);
+      return;
+    }
+
+    setMessage("");
+    setFile(selected);
+  };
 
   const handleUpload = async () => {
-    if (!file) return alert('Please select a file first');
+    if (!file) {
+      setMessage("Please select a PDF/image file first");
+      return;
+    }
 
     const formData = new FormData();
     formData.append('report', file);
@@ -50,7 +81,7 @@ export default function UploadReport() {
       fetchFiles();
     } catch (error) {
       console.error(error);
-      setMessage('Upload failed');
+      setMessage(error.response?.data?.msg || 'Upload failed');
     }
   };
 
@@ -96,11 +127,12 @@ export default function UploadReport() {
           <ArrowLeft size={24} />
         </Link>
         <h2 className="text-xl font-semibold mt-4">Upload Medical Report</h2>
-        <p className='text-red-400 mb-4'>Only images supported</p>
+        <p className='text-red-400 mb-4'>Allowed: PDF/images, max size 5MB</p>
         <input
           onChange={handleFileChange}
           type="file"
           className="file-input file-input-bordered w-full"
+          accept=".pdf,image/*"
         />
 
         <button className="btn btn-primary mt-4" onClick={handleUpload}>
@@ -151,6 +183,7 @@ export default function UploadReport() {
               onClick={() => {
                 URL.revokeObjectURL(previewFile);
                 setPreviewFile(null);
+                setPreviewType(null);
               }}
             >
               Close
@@ -165,7 +198,11 @@ export default function UploadReport() {
             )}
 
             {previewType === 'pdf' && (
-              <PdfViewer fileUrl={previewFile} />
+              <iframe
+                src={previewFile}
+                title="PDF Preview"
+                className="w-full h-full"
+              />
             )}
 
             {previewType === 'other' && (

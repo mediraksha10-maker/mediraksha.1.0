@@ -102,6 +102,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 import { connectDB } from "./config/dataBase.js";
+import { connectRedis } from "./redis/redisClient.js";
 
 // Routes
 import authRoutes from "./routes/authRoutes.js";
@@ -195,6 +196,7 @@ app.use((err, _req, res, _next) => {
 const startServer = async () => {
   try {
     await connectDB();
+    await connectRedis();
     app.listen(PORT, () =>
       console.log(
         `MediRaksha API running on port ${PORT} (${process.env.NODE_ENV})`

@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import { ArrowLeft } from "lucide-react";
 import toast from "react-hot-toast";
 import { GoogleLogin } from "@react-oauth/google";
+import { parseAge } from "../utils/validation";
 
 
 const Auth = () => {
@@ -44,7 +45,7 @@ const Auth = () => {
       const res = await axiosInstance.get("/home");
       const data = res.data;
 
-      if (!data.gender || !data.age) {
+      if (!data.gender || parseAge(data.age) === null) {
         window.location.href = "/details";
       } else {
         window.location.href = "/";
@@ -127,12 +128,12 @@ const Auth = () => {
 
                   const data = res.data;
 
-                  if (!data.gender || !data.age) {
+                  if (!data.gender || parseAge(data.age) === null) {
                     window.location.href = "/details";
                   } else {
                     window.location.href = "/";
                   }
-                } catch (err) {
+                } catch {
                   toast.error("Google login failed");
                 }
               }}
@@ -215,12 +216,12 @@ const Auth = () => {
 
                 const data = res.data;
 
-                if (!data.gender || !data.age) {
+                if (!data.gender || parseAge(data.age) === null) {
                   window.location.href = "/details";
                 } else {
                   window.location.href = "/";
                 }
-              } catch (err) {
+              } catch {
                 toast.error("Google login failed");
               }
             }}

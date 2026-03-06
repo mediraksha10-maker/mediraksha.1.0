@@ -1,6 +1,7 @@
 import { useState } from "react";
 import axiosInstance from "../api/axios";
 import toast from "react-hot-toast";
+import { AGE_MAX, AGE_MIN, parseAge } from "../utils/validation";
 
 const DoctorDetails = () => {
   const [name, setName] = useState("");
@@ -9,9 +10,19 @@ const DoctorDetails = () => {
 
   const handleSubmit = async () => {
     try {
+      const parsedAge = parseAge(age);
+      if (!name.trim() || !hospital.trim()) {
+        toast.error("Name and hospital are required");
+        return;
+      }
+      if (parsedAge === null) {
+        toast.error(`Age must be a whole number between ${AGE_MIN} and ${AGE_MAX}`);
+        return;
+      }
+
       const response = await axiosInstance.patch(
-        "/doctor/details", // 👈 Backend endpoint
-        { name, hospital, age }
+        "/doctor/details",
+        { name: name.trim(), hospital: hospital.trim(), age: parsedAge }
       );
 
       console.log("Doctor details saved:", response.data);
@@ -66,15 +77,11 @@ const DoctorDetails = () => {
             <input
               type="number"
               value={age}
-              onChange={(e) => {
-                if (e.target.value != null && e.target.value < 1) {
-                  toast.error("Invalid Age.");
-                } else {
-                  setAge(e.target.value);
-                }
-              }}
+              onChange={(e) => setAge(e.target.value)}
               placeholder="Enter doctor's age"
               className="input input-bordered w-full"
+              min={AGE_MIN}
+              max={AGE_MAX}
             />
           </label>
 

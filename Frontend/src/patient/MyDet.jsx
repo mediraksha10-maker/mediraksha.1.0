@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import axiosInstance from "../api/axios";
+import toast from "react-hot-toast";
+import { AGE_MAX, AGE_MIN, isValidGender, parseAge } from "../utils/validation";
 
 export default function MyDetail() {
   const [user, setUser] = useState(null);
@@ -64,21 +66,34 @@ export default function MyDetail() {
 
   const handleSave = async () => {
     try {
-      const token = localStorage.getItem("token");
+      const parsedAge = parseAge(formData.age);
+      if (!isValidGender(formData.gender)) {
+        toast.error("Please select a valid gender");
+        return;
+      }
+      if (parsedAge === null) {
+        toast.error(`Age must be a whole number between ${AGE_MIN} and ${AGE_MAX}`);
+        return;
+      }
+      if (!formData.name?.trim()) {
+        toast.error("Name is required");
+        return;
+      }
 
       // 🔹 Axios PATCH request
       const res = await axiosInstance.patch("/home/update", {
         gender: formData.gender,
-        age: formData.age,
-        name: formData.name, // optional: allow name editing too
+        age: parsedAge,
+        name: formData.name.trim(),
       });
 
       const data = res.data;
-      alert("Details updated successfully!");
+      toast.success("Details updated successfully");
       setUser(data.user); // Updated user
       setEditing(false);
     } catch (error) {
       console.error(error.response?.data?.msg || "Error updating details");
+      toast.error(error.response?.data?.msg || "Error updating details");
     }
   };
 
@@ -147,6 +162,8 @@ export default function MyDetail() {
                 value={formData.age}
                 onChange={handleChange}
                 className="input input-bordered w-full"
+                min={AGE_MIN}
+                max={AGE_MAX}
               />
             </div>
 

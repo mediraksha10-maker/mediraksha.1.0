@@ -3,6 +3,7 @@ import axiosInstance from "../api/axios";
 import { Link } from "react-router";
 import { ArrowLeft } from "lucide-react";
 import toast from "react-hot-toast";
+import { parseAge } from "../utils/validation";
 
 const DoctorAuth = () => {
   const [su, setsu] = useState(true);
@@ -41,7 +42,7 @@ const DoctorAuth = () => {
 
       const data = res.data; 
 
-      if (!data.name || !data.hospital || !data.age) {
+      if (!data.name || !data.hospital || parseAge(data.age) === null) {
         window.location.href = "/doctordetail";
       } else {
         window.location.href = "/doctordash";

@@ -37,7 +37,7 @@ export default function Dashboard() {
       const data = res.data;
       setName(data.name || "Sign up to access features");
     } catch (error) {
-      console.error(error.response?.data?.msg || "Error fetching user details");
+      // console.error(error.response?.data?.msg || "Error fetching user details");
     }
   };
   const getDoctor = async () => {
@@ -46,7 +46,7 @@ export default function Dashboard() {
       const data = res.data;
       window.location.href = '/doctordash';
     } catch (error) {
-      console.error(error.response?.data?.msg || "Error fetching user details");
+      // console.error(error.response?.data?.msg || "Error fetching user details");
     }
   }
 

@@ -1,5 +1,6 @@
 import Meeting from '../models/Meeting.js';
 import Doctor from '../models/Doctor.js';
+import { cacheDel, cacheGet, cacheSet } from "../redis/cache.js";
 
 // POST /api/user/appointments — book a meeting
 export const bookAppointment = async (req, res) => {
@@ -33,6 +34,11 @@ export const bookAppointment = async (req, res) => {
 
     // Populate for response
     await meeting.populate('doctor', 'name specialization');
+    await cacheDel(
+      `cache:user:appointments:${patientId}`,
+      `cache:doctor:appointments:${doctorId}`,
+      `cache:doctor:patients:${doctorId}`
+    );
 
     res.status(201).json({ msg: 'Appointment booked', meeting });
   } catch (err) {
@@ -44,10 +50,17 @@ export const bookAppointment = async (req, res) => {
 // GET /api/user/appointments — get all appointments for logged-in patient
 export const getMyAppointments = async (req, res) => {
   try {
+    const cacheKey = `cache:user:appointments:${req.user}`;
+    const cachedMeetings = await cacheGet(cacheKey);
+    if (cachedMeetings) {
+      return res.status(200).json(cachedMeetings);
+    }
+
     const meetings = await Meeting.find({ patient: req.user })
       .populate('doctor', 'name specialization')
       .sort({ date: 1 });
 
+    await cacheSet(cacheKey, meetings, 120);
     res.status(200).json(meetings);
   } catch (err) {
     console.error(err);
@@ -65,6 +78,11 @@ export const cancelAppointment = async (req, res) => {
 
     meeting.status = 'cancelled';
     await meeting.save();
+    await cacheDel(
+      `cache:user:appointments:${req.user}`,
+      `cache:doctor:appointments:${meeting.doctor}`,
+      `cache:doctor:patients:${meeting.doctor}`
+    );
 
     res.status(200).json({ msg: 'Appointment cancelled', meeting });
   } catch (err) {
@@ -95,10 +113,17 @@ export const searchDoctors = async (req, res) => {
 // GET /api/doctor/appointments — all pending requests for this doctor
 export const getDoctorAppointments = async (req, res) => {
   try {
+    const cacheKey = `cache:doctor:appointments:${req.user}`;
+    const cachedMeetings = await cacheGet(cacheKey);
+    if (cachedMeetings) {
+      return res.status(200).json(cachedMeetings);
+    }
+
     const meetings = await Meeting.find({ doctor: req.user })
       .populate("patient", "name age gender")
       .sort({ date: 1 });
 
+    await cacheSet(cacheKey, meetings, 120);
     res.status(200).json(meetings);
   } catch (err) {
     console.error(err);
@@ -126,6 +151,11 @@ export const updateAppointmentStatus = async (req, res) => {
 
     meeting.status = status;
     await meeting.save();
+    await cacheDel(
+      `cache:doctor:appointments:${req.user}`,
+      `cache:user:appointments:${meeting.patient}`,
+      `cache:doctor:patients:${req.user}`
+    );
 
     res.status(200).json({ msg: `Appointment ${status}`, meeting });
   } catch (err) {

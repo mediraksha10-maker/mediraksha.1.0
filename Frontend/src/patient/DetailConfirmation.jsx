@@ -1,6 +1,7 @@
 import { useState } from "react";
 import axiosInstance from "../api/axios";
 import toast from "react-hot-toast";
+import { AGE_MAX, AGE_MIN, isValidGender, parseAge } from "../utils/validation";
 
 const UserDetails = () => {
   const [gender, setGender] = useState("");
@@ -8,19 +9,29 @@ const UserDetails = () => {
 
   const handleSubmit = async () => {
     try {
+      const parsedAge = parseAge(age);
+
+      if (!isValidGender(gender)) {
+        toast.error("Please select a valid gender");
+        return;
+      }
+
+      if (parsedAge === null) {
+        toast.error(`Age must be a whole number between ${AGE_MIN} and ${AGE_MAX}`);
+        return;
+      }
 
       const response = await axiosInstance.patch(
-        "/home/details", // 👈 Backend endpoint
-        { gender, age }
+        "/home/details",
+        { gender, age: parsedAge }
       );
 
       console.log("Details saved:", response.data);
       toast.success("Details submitted successfully!");
-
-      // Redirect to homepage or dashboard
       window.location.href = "/";
     } catch (error) {
       console.error("Error saving details:", error.response?.data || error.message);
+      toast.error(error.response?.data?.msg || "Failed to save details");
     }
   };
 
@@ -55,16 +66,11 @@ const UserDetails = () => {
             <input
               type="number"
               value={age}
-              onChange={(e) => {
-                
-                if(e.target.value != null && e.target.value < 5) {
-                  toast.error("Invalid Age")
-                } else {
-                  setAge(e.target.value)
-                }
-              }}
+              onChange={(e) => { setAge(e.target.value) }}
               placeholder="Enter your age"
               className="input input-bordered w-full"
+              min={AGE_MIN}
+              max={AGE_MAX}
             />
           </label>
 

@@ -1,4 +1,5 @@
 import mongoose from 'mongoose'
+import { AGE_MAX, AGE_MIN } from "../utils/validation.js";
 
 const schema = new mongoose.Schema({
         doctorId: {
@@ -8,12 +9,20 @@ const schema = new mongoose.Schema({
         },
         name: {
             type: String,
+            trim: true,
         },
         hospital: {
             type: String,
+            trim: true,
         },
         age: {
             type: Number,
+            min: AGE_MIN,
+            max: AGE_MAX,
+            validate: {
+                validator: Number.isInteger,
+                message: "Age must be a whole number"
+            }
         },
         password: {
             type: String,

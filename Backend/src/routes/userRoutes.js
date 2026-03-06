@@ -6,18 +6,47 @@ import { uploadFile, getAllFiles, getFileById, deleteFile } from "../controllers
 import { bookAppointment, getMyAppointments, cancelAppointment } from "../controllers/appointmentController.js";
 import { searchDoctor, getMyDoctors, addMyDoctor, removeMyDoctor, swapMyDoctor } from "../controllers/doctorController.js";
 import User from "../models/User.js";
+import { cacheDel, cacheGet, cacheSet } from "../redis/cache.js";
+import { isNonEmptyString, isValidGender, parseAge } from "../utils/validation.js";
 
 const router = express.Router();
 
 const storage = multer.memoryStorage();
-export const upload = multer({ storage });
+const MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
+const ALLOWED_MIME_TYPES = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+  "image/bmp",
+]);
+
+export const upload = multer({
+  storage,
+  limits: { fileSize: MAX_UPLOAD_SIZE_BYTES },
+  fileFilter: (_req, file, cb) => {
+    if (!ALLOWED_MIME_TYPES.has(file.mimetype)) {
+      return cb(new Error("Only PDF and image files are allowed"));
+    }
+    cb(null, true);
+  },
+});
 
 /* ───────────── USER PROFILE ───────────── */
 
 router.get("/", async (req, res) => {
   try {
+    const cacheKey = `cache:user:profile:${req.user}`;
+    const cachedUser = await cacheGet(cacheKey);
+    if (cachedUser) {
+      return res.status(200).json(cachedUser);
+    }
+
     const myDet = await User.findById(req.user).select("-password");
     if (!myDet) return res.status(404).json({ msg: "User not found" });
+
+    await cacheSet(cacheKey, myDet, 180);
     res.status(200).json(myDet);
   } catch (err) {
     console.error(err);
@@ -28,16 +57,21 @@ router.get("/", async (req, res) => {
 router.patch("/details", async (req, res) => {
   try {
     const { gender, age } = req.body;
-    if (!gender || !age)
-      return res.status(400).json({ msg: "Please provide both gender and age" });
+    const parsedAge = parseAge(age);
+    if (!isValidGender(gender) || parsedAge === null) {
+      return res.status(400).json({
+        msg: "Provide valid gender (Male/Female/Other) and age (1-120)",
+      });
+    }
 
     const updatedUser = await User.findByIdAndUpdate(
       req.user,
-      { gender, age },
+      { gender, age: parsedAge },
       { new: true, runValidators: true, select: "-password" }
     );
     if (!updatedUser) return res.status(404).json({ msg: "User not found" });
 
+    await cacheDel(`cache:user:profile:${req.user}`);
     res.status(200).json({ msg: "User details updated successfully", user: updatedUser });
   } catch (err) {
     console.error(err);
@@ -48,16 +82,25 @@ router.patch("/details", async (req, res) => {
 router.patch("/update", async (req, res) => {
   try {
     const { gender, age, name } = req.body;
-    if (!gender || !age)
-      return res.status(400).json({ msg: "Please provide both gender and age" });
+    const parsedAge = parseAge(age);
+    if (!isValidGender(gender) || parsedAge === null) {
+      return res.status(400).json({
+        msg: "Provide valid gender (Male/Female/Other) and age (1-120)",
+      });
+    }
+
+    if (!isNonEmptyString(name)) {
+      return res.status(400).json({ msg: "Name is required" });
+    }
 
     const updatedUser = await User.findByIdAndUpdate(
       req.user,
-      { name, gender, age },
+      { name: name.trim(), gender, age: parsedAge },
       { new: true, runValidators: true, select: "-password" }
     );
     if (!updatedUser) return res.status(404).json({ msg: "User not found" });
 
+    await cacheDel(`cache:user:profile:${req.user}`);
     res.status(200).json({ msg: "User details updated successfully", user: updatedUser });
   } catch (err) {
     console.error(err);
@@ -67,7 +110,17 @@ router.patch("/update", async (req, res) => {
 
 /* ───────────── FILE UPLOAD ───────────── */
 
-router.post("/upload", upload.single("report"), uploadFile);
+router.post("/upload", (req, res, next) => {
+  upload.single("report")(req, res, (err) => {
+    if (!err) return next();
+
+    if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
+      return res.status(400).json({ msg: "File size must be 5MB or less" });
+    }
+
+    return res.status(400).json({ msg: err.message || "Invalid file upload" });
+  });
+}, uploadFile);
 router.get("/files", getAllFiles);
 router.get("/file/:id", getFileById);
 router.delete("/file/:id", deleteFile);

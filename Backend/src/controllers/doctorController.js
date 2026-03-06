@@ -1,6 +1,7 @@
 import User from "../models/User.js";
 import Doctor from "../models/Doctor.js";
 import Meeting from "../models/Meeting.js";
+import { cacheDel, cacheGet, cacheSet } from "../redis/cache.js";
 
 const MAX_DOCTORS = 3;
 
@@ -8,6 +9,15 @@ const MAX_DOCTORS = 3;
 export const searchDoctor = async (req, res) => {
   try {
     const { name, specialization } = req.query;
+    const normalizedName = (name || "").trim().toLowerCase();
+    const normalizedSpecialization = (specialization || "").trim().toLowerCase();
+    const cacheKey = `cache:doctor:search:${normalizedName}:${normalizedSpecialization}`;
+
+    const cachedDoctors = await cacheGet(cacheKey);
+    if (cachedDoctors) {
+      return res.status(200).json(cachedDoctors);
+    }
+
     const filter = {};
     if (name)           filter.name           = { $regex: name, $options: "i" };
     if (specialization) filter.specialization = { $regex: specialization, $options: "i" };
@@ -15,6 +25,7 @@ export const searchDoctor = async (req, res) => {
     const doctors = await Doctor.find(filter).select(
       "name specialization hospital experience contact email"
     );
+    await cacheSet(cacheKey, doctors, 60);
     res.status(200).json(doctors);
   } catch (err) {
     console.error(err);
@@ -25,11 +36,22 @@ export const searchDoctor = async (req, res) => {
 // GET /api/home/my-doctors
 export const getMyDoctors = async (req, res) => {
   try {
+    const cacheKey = `cache:user:my-doctors:${req.user}`;
+    const cachedDoctors = await cacheGet(cacheKey);
+    if (cachedDoctors) {
+      return res.status(200).json(cachedDoctors);
+    }
+
     const user = await User.findById(req.user)
       .populate("registeredDoctors", "name specialization hospital experience contact email")
       .select("registeredDoctors");
+    if (!user) {
+      return res.status(404).json({ msg: "User not found" });
+    }
 
-    res.status(200).json(user.registeredDoctors || []);
+    const doctors = user?.registeredDoctors || [];
+    await cacheSet(cacheKey, doctors, 120);
+    res.status(200).json(doctors);
   } catch (err) {
     console.error(err);
     res.status(500).json({ msg: "Server error" });
@@ -45,6 +67,7 @@ export const addMyDoctor = async (req, res) => {
     if (!doctor) return res.status(404).json({ msg: "Doctor not found" });
 
     const user = await User.findById(req.user);
+    if (!user) return res.status(404).json({ msg: "User not found" });
 
     if (user.registeredDoctors.map(String).includes(String(doctorId))) {
       return res.status(409).json({ msg: "Doctor already registered" });
@@ -60,6 +83,10 @@ export const addMyDoctor = async (req, res) => {
     user.registeredDoctors.push(doctorId);
     await user.save();
     await user.populate("registeredDoctors", "name specialization hospital experience contact email");
+    await cacheDel(
+      `cache:user:my-doctors:${req.user}`,
+      `cache:doctor:patients:${doctorId}`
+    );
 
     res.status(200).json({
       msg: "Doctor registered successfully",
@@ -79,6 +106,10 @@ export const removeMyDoctor = async (req, res) => {
     await User.findByIdAndUpdate(req.user, {
       $pull: { registeredDoctors: doctorId },
     });
+    await cacheDel(
+      `cache:user:my-doctors:${req.user}`,
+      `cache:doctor:patients:${doctorId}`
+    );
 
     res.status(200).json({ msg: "Doctor removed successfully" });
   } catch (err) {
@@ -96,6 +127,7 @@ export const swapMyDoctor = async (req, res) => {
     if (!newDoctor) return res.status(404).json({ msg: "Doctor not found" });
 
     const user = await User.findById(req.user);
+    if (!user) return res.status(404).json({ msg: "User not found" });
 
     user.registeredDoctors = user.registeredDoctors
       .map(String)
@@ -107,6 +139,11 @@ export const swapMyDoctor = async (req, res) => {
 
     await user.save();
     await user.populate("registeredDoctors", "name specialization hospital experience contact email");
+    await cacheDel(
+      `cache:user:my-doctors:${req.user}`,
+      `cache:doctor:patients:${addId}`,
+      `cache:doctor:patients:${removeId}`
+    );
 
     res.status(200).json({
       msg: "Doctor swapped successfully",
@@ -122,6 +159,12 @@ export const swapMyDoctor = async (req, res) => {
 export const getMyPatients = async (req, res) => {
   try {
     const doctorId = req.user;
+    const cacheKey = `cache:doctor:patients:${doctorId}`;
+
+    const cachedPatients = await cacheGet(cacheKey);
+    if (cachedPatients) {
+      return res.status(200).json(cachedPatients);
+    }
 
     // All users who registered this doctor (array field now)
     const patients = await User.find({ registeredDoctors: doctorId })
@@ -140,6 +183,7 @@ export const getMyPatients = async (req, res) => {
       })
     );
 
+    await cacheSet(cacheKey, patientsWithHistory, 120);
     res.status(200).json(patientsWithHistory);
   } catch (err) {
     console.error(err);
