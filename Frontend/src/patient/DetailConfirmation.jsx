@@ -1,11 +1,18 @@
 import { useState } from "react";
 import axiosInstance from "../api/axios";
 import toast from "react-hot-toast";
-import { AGE_MAX, AGE_MIN, isValidGender, parseAge } from "../utils/validation";
+import {
+  AGE_MAX,
+  AGE_MIN,
+  isValidGender,
+  isValidPhoneNumber,
+  parseAge,
+} from "../utils/validation";
 
 const UserDetails = () => {
   const [gender, setGender] = useState("");
   const [age, setAge] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
 
   const handleSubmit = async () => {
     try {
@@ -21,9 +28,14 @@ const UserDetails = () => {
         return;
       }
 
+      if (!isValidPhoneNumber(phoneNumber)) {
+        toast.error("Phone number must be exactly 10 digits");
+        return;
+      }
+
       const response = await axiosInstance.patch(
         "/home/details",
-        { gender, age: parsedAge }
+        { gender, age: parsedAge, phoneNumber: phoneNumber.trim() }
       );
 
       console.log("Details saved:", response.data);
@@ -71,6 +83,23 @@ const UserDetails = () => {
               className="input input-bordered w-full"
               min={AGE_MIN}
               max={AGE_MAX}
+            />
+          </label>
+
+          {/* Phone Number */}
+          <label className="form-control w-full mb-6">
+            <div className="label">
+              <span className="label-text">Phone Number</span>
+            </div>
+            <input
+              type="tel"
+              value={phoneNumber}
+              onChange={(e) =>
+                setPhoneNumber(e.target.value.replace(/\D/g, "").slice(0, 10))
+              }
+              placeholder="Enter 10-digit phone number"
+              className="input input-bordered w-full"
+              maxLength={10}
             />
           </label>
 

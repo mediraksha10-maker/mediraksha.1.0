@@ -17,3 +17,6 @@ export const parseAge = (value) => {
 };
 
 export const isValidGender = (value) => ALLOWED_GENDERS.includes(value);
+
+export const isValidPhoneNumber = (value) =>
+  typeof value === "string" && /^\d{10}$/.test(value.trim());

@@ -1,6 +1,6 @@
 import User from "../models/User.js";
 import Doctor from "../models/Doctor.js";
-import Meeting from "../models/Meeting.js";
+import Appointment from "../models/Appointment.js";
 import { cacheDel, cacheGet, cacheSet } from "../redis/cache.js";
 
 const MAX_DOCTORS = 3;
@@ -168,18 +168,26 @@ export const getMyPatients = async (req, res) => {
 
     // All users who registered this doctor (array field now)
     const patients = await User.find({ registeredDoctors: doctorId })
-      .select("name age gender email contact");
+      .select("name age gender email phoneNumber contact");
 
     const patientsWithHistory = await Promise.all(
       patients.map(async (patient) => {
-        const appointments = await Meeting.find({
-          doctor: doctorId,
-          patient: patient._id,
+        const appointments = await Appointment.find({
+          doctorId,
+          patientId: patient._id,
         })
-          .select("date startTime status reason")
-          .sort({ date: -1 });
+          .select("appointmentDate status reasonOfAppointment")
+          .sort({ appointmentDate: -1 })
+          .lean();
 
-        return { ...patient.toObject(), appointments };
+        const normalizedAppointments = appointments.map((appointment) => ({
+          ...appointment,
+          date: appointment.appointmentDate,
+          startTime: "09:00",
+          reason: appointment.reasonOfAppointment,
+        }));
+
+        return { ...patient.toObject(), appointments: normalizedAppointments };
       })
     );
 

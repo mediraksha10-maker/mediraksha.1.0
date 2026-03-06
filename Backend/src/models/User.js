@@ -32,6 +32,12 @@ const schema = new mongoose.Schema(
         message: "Age must be a whole number",
       },
     },
+    phoneNumber: {
+      type: String,
+      required: false,
+      trim: true,
+      match: [/^\d{10}$/, "Phone number must be exactly 10 digits"],
+    },
     registeredDoctors: [
       {
         type: mongoose.Schema.Types.ObjectId,

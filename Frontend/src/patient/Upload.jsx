@@ -17,6 +17,9 @@ export default function UploadReport() {
   const [file, setFile] = useState(null);
   const [message, setMessage] = useState('');
   const [files, setFiles] = useState([]);
+  const [title, setTitle] = useState("");
+  const [category, setCategory] = useState("lab");
+  const [visibility, setVisibility] = useState("private");
   const [previewFile, setPreviewFile] = useState(null);
   const [previewType, setPreviewType] = useState(null);
 
@@ -61,9 +64,21 @@ export default function UploadReport() {
       setMessage("Please select a PDF/image file first");
       return;
     }
+    if (!title.trim()) {
+      setMessage("Please enter report title");
+      return;
+    }
+    if (!category) {
+      setMessage("Please select report category");
+      return;
+    }
 
     const formData = new FormData();
     formData.append('report', file);
+    formData.append("title", title.trim());
+    formData.append("category", category);
+    formData.append("visibility", visibility);
+    formData.append("uploadedBy", "patient");
 
     try {
       const res = await axiosInstance.post(
@@ -78,6 +93,9 @@ export default function UploadReport() {
 
       setMessage(res.data.msg);
       setFile(null);
+      setTitle("");
+      setCategory("lab");
+      setVisibility("private");
       fetchFiles();
     } catch (error) {
       console.error(error);
@@ -96,7 +114,7 @@ export default function UploadReport() {
     }
   };
 
-  const handlePreview = async (id, filename) => {
+  const handlePreview = async (id) => {
     try {
       const res = await axiosInstance.get(
         `${API_URL}/file/${id}`,
@@ -106,9 +124,9 @@ export default function UploadReport() {
       const blob = new Blob([res.data], { type: res.data.type });
       const url = URL.createObjectURL(blob);
 
-      if (/\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(filename)) {
+      if (blob.type.startsWith("image/")) {
         setPreviewType('image');
-      } else if (/\.pdf$/i.test(filename)) {
+      } else if (blob.type === "application/pdf") {
         setPreviewType('pdf');
       } else {
         setPreviewType('other');
@@ -134,6 +152,35 @@ export default function UploadReport() {
           className="file-input file-input-bordered w-full"
           accept=".pdf,image/*"
         />
+        <input
+          type="text"
+          placeholder="Report title"
+          className="input input-bordered w-full mt-3"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+        />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+          <select
+            className="select select-bordered w-full"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+          >
+            <option value="lab">Lab</option>
+            <option value="prescription">Prescription</option>
+            <option value="scan">Scan</option>
+            <option value="discharge">Discharge</option>
+            <option value="other">Other</option>
+          </select>
+          <select
+            className="select select-bordered w-full"
+            value={visibility}
+            onChange={(e) => setVisibility(e.target.value)}
+          >
+            <option value="private">Private</option>
+            <option value="doctor">Doctor</option>
+            <option value="public">Public</option>
+          </select>
+        </div>
 
         <button className="btn btn-primary mt-4" onClick={handleUpload}>
           Upload
@@ -151,12 +198,15 @@ export default function UploadReport() {
                   <div className="flex items-center gap-4">
                     <button
                       className="text-blue-500 underline"
-                      onClick={() => handlePreview(f._id, f.filename)}
+                      onClick={() => handlePreview(f._id)}
                     >
                       Preview
                     </button>
 
-                    <span>{f.filename}</span>
+                    <span>
+                      <strong>{f.title}</strong> ({f.category}) - {f.visibility}
+                      {f.originalFileName ? ` - ${f.originalFileName}` : ""}
+                    </span>
 
                     <button
                       className="btn btn-error btn-sm"

@@ -2,7 +2,13 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import axiosInstance from "../api/axios";
 import toast from "react-hot-toast";
-import { AGE_MAX, AGE_MIN, isValidGender, parseAge } from "../utils/validation";
+import {
+  AGE_MAX,
+  AGE_MIN,
+  isValidGender,
+  isValidPhoneNumber,
+  parseAge,
+} from "../utils/validation";
 
 export default function MyDetail() {
   const [user, setUser] = useState(null);
@@ -12,7 +18,8 @@ export default function MyDetail() {
     name: "",
     email: "",
     gender: "",
-    age: ""
+    age: "",
+    phoneNumber: "",
   });
 
   const navigate = useNavigate();
@@ -30,7 +37,8 @@ export default function MyDetail() {
           name: data.name || "",
           email: data.email || "",
           gender: data.gender || "",
-          age: data.age || ""
+          age: data.age || "",
+          phoneNumber: data.phoneNumber || "",
         });
       } catch (error) {
         console.error(error.response?.data?.msg || "Error fetching user details");
@@ -79,12 +87,17 @@ export default function MyDetail() {
         toast.error("Name is required");
         return;
       }
+      if (!isValidPhoneNumber(formData.phoneNumber)) {
+        toast.error("Phone number must be exactly 10 digits");
+        return;
+      }
 
       // 🔹 Axios PATCH request
       const res = await axiosInstance.patch("/home/update", {
         gender: formData.gender,
         age: parsedAge,
         name: formData.name.trim(),
+        phoneNumber: formData.phoneNumber.trim(),
       });
 
       const data = res.data;
@@ -140,6 +153,23 @@ export default function MyDetail() {
             </div>
 
             <div className="mb-4">
+              <label className="block mb-1 font-bold">Phone Number</label>
+              <input
+                type="tel"
+                name="phoneNumber"
+                value={formData.phoneNumber}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    phoneNumber: e.target.value.replace(/\D/g, "").slice(0, 10),
+                  }))
+                }
+                className="input input-bordered w-full"
+                maxLength={10}
+              />
+            </div>
+
+            <div className="mb-4">
               <label className="block mb-1 font-bold">Gender</label>
               <select
                 name="gender"
@@ -190,6 +220,9 @@ export default function MyDetail() {
             </div>
             <div className="mb-4">
               <span className="font-bold">Age:</span> {user.age}
+            </div>
+            <div className="mb-4">
+              <span className="font-bold">Phone Number:</span> {user.phoneNumber}
             </div>
 
             <div className="flex gap-3">

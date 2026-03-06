@@ -16,7 +16,7 @@ const STATUS_COLOR = {
 
 export default function AppointmentCalendar() {
   const [events, setEvents]             = useState([]);
-  const [meetings, setMeetings]         = useState([]);
+  const [appointments, setAppointments] = useState([]);
   const [doctors, setDoctors]           = useState([]);
   const [doctorSearch, setDoctorSearch] = useState("");
   const [showModal, setShowModal]       = useState(false);
@@ -26,9 +26,8 @@ export default function AppointmentCalendar() {
   const [form, setForm] = useState({
     doctorId: "",
     doctorName: "",
-    date: "",
-    startTime: "",
-    reason: "",
+    appointmentDate: "",
+    reasonOfAppointment: "",
   });
 
   /* ── Fetch appointments on mount ── */
@@ -39,17 +38,17 @@ export default function AppointmentCalendar() {
   const fetchAppointments = async () => {
     try {
       const { data } = await axiosInstance.get("/home/appointments");
-      setMeetings(data);
+      setAppointments(data);
       setEvents(
         data
-          .filter((m) => m.status !== "cancelled")
-          .map((m) => ({
-            id: m._id,
-            title: `Dr. ${m.doctor?.name} — ${m.startTime}`,
-            date: m.date.split("T")[0],
-            backgroundColor: m.status === "confirmed" ? "#22c55e" : "#f59e0b",
+          .filter((appointment) => appointment.status !== "cancelled")
+          .map((appointment) => ({
+            id: appointment._id,
+            title: `Dr. ${appointment.doctorName}`,
+            date: String(appointment.appointmentDate).split("T")[0],
+            backgroundColor: appointment.status === "confirmed" ? "#22c55e" : "#f59e0b",
             borderColor: "transparent",
-            extendedProps: m,
+            extendedProps: appointment,
           }))
       );
     } catch (err) {
@@ -76,17 +75,16 @@ export default function AppointmentCalendar() {
   /* ── Book appointment ── */
   const handleSubmit = async () => {
     setError("");
-    if (!form.doctorId || !form.date || !form.startTime) {
-      setError("Doctor, date and time are required.");
+    if (!form.doctorId || !form.appointmentDate || !form.reasonOfAppointment.trim()) {
+      setError("Doctor, appointment date and reason are required.");
       return;
     }
     setLoading(true);
     try {
       await axiosInstance.post("/home/appointments", {
         doctorId: form.doctorId,
-        date: form.date,
-        startTime: form.startTime,
-        reason: form.reason,
+        appointmentDate: form.appointmentDate,
+        reasonOfAppointment: form.reasonOfAppointment.trim(),
       });
       setShowModal(false);
       resetForm();
@@ -110,7 +108,12 @@ export default function AppointmentCalendar() {
   };
 
   const resetForm = () =>
-    setForm({ doctorId: "", doctorName: "", date: "", startTime: "", reason: "" });
+    setForm({
+      doctorId: "",
+      doctorName: "",
+      appointmentDate: "",
+      reasonOfAppointment: "",
+    });
 
   const closeModal = () => {
     setShowModal(false);
@@ -145,31 +148,32 @@ export default function AppointmentCalendar() {
       />
 
       {/* ── Appointments list ── */}
-      {meetings.length > 0 && (
+      {appointments.length > 0 && (
         <div>
           <h3 className="text-lg font-semibold mb-3">All Appointments</h3>
           <div className="space-y-2">
-            {meetings.map((m) => (
+            {appointments.map((appointment) => (
               <div
-                key={m._id}
+                key={appointment._id}
                 className="flex items-center justify-between bg-base-200 rounded-lg px-4 py-3"
               >
                 <div>
-                  <p className="font-medium">Dr. {m.doctor?.name}</p>
+                  <p className="font-medium">Dr. {appointment.doctorName}</p>
                   <p className="text-sm text-gray-500">
-                    {m.doctor?.specialization} &bull;{" "}
-                    {new Date(m.date).toLocaleDateString()} at {m.startTime}
+                    {appointment.speciality} &bull;{" "}
+                    {appointment.hospitalName} &bull;{" "}
+                    {new Date(appointment.appointmentDate).toLocaleDateString()}
                   </p>
-                  {m.reason && (
-                    <p className="text-xs text-gray-400 mt-0.5">{m.reason}</p>
+                  {appointment.reasonOfAppointment && (
+                    <p className="text-xs text-gray-400 mt-0.5">{appointment.reasonOfAppointment}</p>
                   )}
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className={`badge ${STATUS_COLOR[m.status]}`}>{m.status}</span>
-                  {m.status !== "cancelled" && (
+                  <span className={`badge ${STATUS_COLOR[appointment.status]}`}>{appointment.status}</span>
+                  {appointment.status !== "cancelled" && (
                     <button
                       className="btn btn-ghost btn-xs text-error"
-                      onClick={() => handleCancel(m._id)}
+                      onClick={() => handleCancel(appointment._id)}
                     >
                       Cancel
                     </button>
@@ -224,7 +228,10 @@ export default function AppointmentCalendar() {
                       }}
                     >
                       <span className="font-medium">{d.name}</span>
-                      <span className="text-xs text-gray-400 ml-2">{d.specialization}</span>
+                      <span className="text-xs text-gray-400 ml-2">
+                        {d.specialization || "General Medicine"}
+                        {d.hospital ? ` • ${d.hospital}` : ""}
+                      </span>
                     </button>
                   </li>
                 ))}
@@ -246,25 +253,17 @@ export default function AppointmentCalendar() {
               type="date"
               className="input input-bordered w-full mb-3"
               min={new Date().toISOString().split("T")[0]}
-              value={form.date}
-              onChange={(e) => setForm({ ...form, date: e.target.value })}
+              value={form.appointmentDate}
+              onChange={(e) => setForm({ ...form, appointmentDate: e.target.value })}
             />
 
-            <label className="label text-sm font-medium pb-1">Time</label>
-            <input
-              type="time"
-              className="input input-bordered w-full mb-3"
-              value={form.startTime}
-              onChange={(e) => setForm({ ...form, startTime: e.target.value })}
-            />
-
-            <label className="label text-sm font-medium pb-1">Reason (optional)</label>
+            <label className="label text-sm font-medium pb-1">Reason</label>
             <textarea
               className="textarea textarea-bordered w-full mb-4"
               placeholder="Describe your concern..."
               rows={3}
-              value={form.reason}
-              onChange={(e) => setForm({ ...form, reason: e.target.value })}
+              value={form.reasonOfAppointment}
+              onChange={(e) => setForm({ ...form, reasonOfAppointment: e.target.value })}
             />
 
             <div className="flex justify-end gap-2">

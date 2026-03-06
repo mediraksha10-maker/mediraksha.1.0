@@ -7,7 +7,12 @@ import { bookAppointment, getMyAppointments, cancelAppointment } from "../contro
 import { searchDoctor, getMyDoctors, addMyDoctor, removeMyDoctor, swapMyDoctor } from "../controllers/doctorController.js";
 import User from "../models/User.js";
 import { cacheDel, cacheGet, cacheSet } from "../redis/cache.js";
-import { isNonEmptyString, isValidGender, parseAge } from "../utils/validation.js";
+import {
+  isNonEmptyString,
+  isValidGender,
+  isValidPhoneNumber,
+  parseAge,
+} from "../utils/validation.js";
 
 const router = express.Router();
 
@@ -56,17 +61,17 @@ router.get("/", async (req, res) => {
 
 router.patch("/details", async (req, res) => {
   try {
-    const { gender, age } = req.body;
+    const { gender, age, phoneNumber } = req.body;
     const parsedAge = parseAge(age);
-    if (!isValidGender(gender) || parsedAge === null) {
+    if (!isValidGender(gender) || parsedAge === null || !isValidPhoneNumber(phoneNumber)) {
       return res.status(400).json({
-        msg: "Provide valid gender (Male/Female/Other) and age (1-120)",
+        msg: "Provide valid gender (Male/Female/Other), age (1-120) and a 10-digit phone number",
       });
     }
 
     const updatedUser = await User.findByIdAndUpdate(
       req.user,
-      { gender, age: parsedAge },
+      { gender, age: parsedAge, phoneNumber: phoneNumber.trim() },
       { new: true, runValidators: true, select: "-password" }
     );
     if (!updatedUser) return res.status(404).json({ msg: "User not found" });
@@ -81,7 +86,7 @@ router.patch("/details", async (req, res) => {
 
 router.patch("/update", async (req, res) => {
   try {
-    const { gender, age, name } = req.body;
+    const { gender, age, name, phoneNumber } = req.body;
     const parsedAge = parseAge(age);
     if (!isValidGender(gender) || parsedAge === null) {
       return res.status(400).json({
@@ -93,9 +98,23 @@ router.patch("/update", async (req, res) => {
       return res.status(400).json({ msg: "Name is required" });
     }
 
+    if (phoneNumber !== undefined && !isValidPhoneNumber(phoneNumber)) {
+      return res.status(400).json({ msg: "Phone number must be exactly 10 digits" });
+    }
+
+    const updatePayload = {
+      name: name.trim(),
+      gender,
+      age: parsedAge,
+    };
+
+    if (phoneNumber !== undefined) {
+      updatePayload.phoneNumber = phoneNumber.trim();
+    }
+
     const updatedUser = await User.findByIdAndUpdate(
       req.user,
-      { name: name.trim(), gender, age: parsedAge },
+      updatePayload,
       { new: true, runValidators: true, select: "-password" }
     );
     if (!updatedUser) return res.status(404).json({ msg: "User not found" });
