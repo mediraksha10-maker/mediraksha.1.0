@@ -108,6 +108,7 @@ import { connectRedis } from "./redis/redisClient.js";
 import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import doctorRoutes from "./routes/doctorRoutes.js";
+import slotRoutes from "./routes/slotRoutes.js";
 import authMiddleware from "./middlewares/authMiddleware.js";
 
 dotenv.config();
@@ -155,6 +156,7 @@ app.get("/api/health", (_req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/home", authMiddleware, userRoutes);
 app.use("/api/doctor", authMiddleware, doctorRoutes);
+app.use("/api/slots", slotRoutes);
 
 /* ---------------- SERVE FRONTEND (PRODUCTION) ---------------- */
 
