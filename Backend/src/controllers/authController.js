@@ -10,11 +10,11 @@ const JWT_SECRET = process.env.JWT_SECRET;
 // sign up
 export async function createUser(req, res) {
     try {
-        const { name, email, password } = req.body;
+        const { name, email, password, age, gender } = req.body;
         const userExists = await User.findOne({ email });
         if (userExists) return res.status(400).json({ msg: 'User already exists' });
         const hashedPassword = await bcrypt.hash(password, 10);
-        const newUser = new User({ name, email, password: hashedPassword });
+        const newUser = new User({ name, email, password: hashedPassword, age, gender });
         await newUser.save();
 
         const token = jwt.sign({ id: newUser._id }, JWT_SECRET, {
@@ -29,7 +29,7 @@ export async function createUser(req, res) {
             maxAge: 7 * 24 * 60 * 60 * 1000,
         });
 
-        res.status(201).json({msg:"User created successfully"});
+        res.status(201).json({ msg: "User created successfully", token });
     } catch (error) {
         console.log("Error in the app ", error);
         res.status(500).json({ message: "Internal Server error" });
@@ -57,7 +57,9 @@ export async function getUser(req, res) {
             maxAge: 7 * 24 * 60 * 60 * 1000,
         });
 
-        res.json({ msg: "Login successful" });
+        const userResponse = { ...user._doc };
+        delete userResponse.password;
+        res.json({ msg: "Login successful", token, user: userResponse });
     } catch (error) {
         console.log("Error in the app ", error);
         res.status(500).json({ message: "Internal Server error" });
@@ -65,8 +67,8 @@ export async function getUser(req, res) {
 }
 
 export const logout = (req, res) => {
-  res.clearCookie("token");
-  res.json({ msg: "Logged out" });
+    res.clearCookie("token");
+    res.json({ msg: "Logged out" });
 };
 
 

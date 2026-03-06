@@ -10,11 +10,11 @@ const JWT_SECRET = process.env.JWT_SECRET;
 // sign up
 export async function createDoctor(req, res) {
     try {
-        const { doctorId, password } = req.body;
+        const { doctorId, password, name, age, hospital } = req.body;
         const userExists = await doctor.findOne({ doctorId });
         if (userExists) return res.status(400).json({ msg: 'User already exists' });
         const hashedPassword = await bcrypt.hash(password, 10);
-        const newUser = new doctor({ doctorId, password: hashedPassword });
+        const newUser = new doctor({ doctorId, password: hashedPassword, name, age, hospital });
         await newUser.save();
 
         const token = jwt.sign({ id: newUser._id }, JWT_SECRET, {
@@ -29,7 +29,7 @@ export async function createDoctor(req, res) {
             maxAge: 7 * 24 * 60 * 60 * 1000,
         });
 
-        res.status(201).json({msg:"User created successfully"});
+        res.status(201).json({ msg: "User created successfully", token });
     } catch (error) {
         console.log("Error in the app ", error);
         res.status(500).json({ message: "Internal Server error" });
@@ -57,7 +57,9 @@ export async function getDoctor(req, res) {
             maxAge: 7 * 24 * 60 * 60 * 1000,
         });
 
-        res.json({ msg: "Login successful" });
+        const userResponse = { ...user._doc };
+        delete userResponse.password;
+        res.json({ msg: "Login successful", token, user: userResponse, role: 'Doctor' });
     } catch (error) {
         console.log("Error in the app ", error);
         res.status(500).json({ message: "Internal Server error" });
@@ -65,8 +67,8 @@ export async function getDoctor(req, res) {
 }
 
 export const logout = (req, res) => {
-  res.clearCookie("token");
-  res.json({ msg: "Logged out" });
+    res.clearCookie("token");
+    res.json({ msg: "Logged out" });
 };
 
 

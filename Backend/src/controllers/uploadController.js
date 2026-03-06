@@ -18,9 +18,16 @@ export async function uploadFile(req, res) {
       return res.status(400).json({ msg: 'No file received' });
     }
 
+    const { category, filesize } = req.body;
+
     const uploadStream = bucket.openUploadStream(req.file.originalname, {
       contentType: req.file.mimetype,
-      metadata: { userId: req.user, mimeType: req.file.mimetype },
+      metadata: {
+        userId: req.user,
+        mimeType: req.file.mimetype,
+        category: category || 'Uncategorized',
+        filesize: filesize || (req.file.size / (1024 * 1024)).toFixed(2)
+      },
     });
     uploadStream.end(req.file.buffer);
 
@@ -33,7 +40,7 @@ export async function uploadFile(req, res) {
   }
 }
 
-export async function getAllFiles (req, res) {
+export async function getAllFiles(req, res) {
   try {
     if (!bucket) {
       return res.status(503).json({ msg: 'File service unavailable' });
@@ -48,7 +55,7 @@ export async function getAllFiles (req, res) {
   }
 }
 
-export async function getFileById (req, res) {
+export async function getFileById(req, res) {
   try {
     if (!bucket) {
       return res.status(503).json({ msg: 'File service unavailable' });
@@ -75,7 +82,7 @@ export async function getFileById (req, res) {
 }
 
 
-export async function deleteFile (req, res) {
+export async function deleteFile(req, res) {
   try {
     if (!bucket) {
       return res.status(503).json({ msg: 'File service unavailable' });
