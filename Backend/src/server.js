@@ -161,10 +161,7 @@ app.use("/api/slots", slotRoutes);
 /* ---------------- SERVE FRONTEND (PRODUCTION) ---------------- */
 
 if (process.env.NODE_ENV === "production") {
-  //const frontendPath = path.join(__dirname, "../../../Frontend/dist");
-  // or
-  const frontendPath = "/opt/render/project/src/Frontend/dist";
-
+  const frontendPath = path.join(__dirname, "../../Frontend/dist");
   app.use(express.static(frontendPath));
   app.get("*", (_req, res) => {
     res.sendFile(path.join(frontendPath, "index.html"));
