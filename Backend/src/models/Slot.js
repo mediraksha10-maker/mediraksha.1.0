@@ -15,6 +15,7 @@ const slotSchema = new mongoose.Schema({
   },
   status: {
     type: String,
+    enum: ["available", "reserved", "booked"],
     default: "available",
   },
 });

@@ -57,7 +57,7 @@ export async function getUser(req, res) {
             maxAge: 7 * 24 * 60 * 60 * 1000,
         });
 
-        res.json({ msg : token });
+        res.json({ msg: token });
     } catch (error) {
         console.log("Error in the app ", error);
         res.status(500).json({ message: "Internal Server error" });

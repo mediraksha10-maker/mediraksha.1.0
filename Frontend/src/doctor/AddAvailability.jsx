@@ -113,7 +113,7 @@ export default function DoctorAvailability() {
         return;
       }
 
-      alert("Slots published successfully");
+      alert(data.message || "Slots published successfully");
       setSelectedTimes([]);
       fetchDoctorsFromSlots();
     } catch (error) {
