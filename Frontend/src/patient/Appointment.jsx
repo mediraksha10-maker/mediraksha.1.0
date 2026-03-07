@@ -38,6 +38,9 @@ export default function BookAppointment() {
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingError, setBookingError] = useState("");
   const [bookingSuccess, setBookingSuccess] = useState(null);
+  const [myAppointments, setMyAppointments] = useState([]);
+  const [appointmentsLoading, setAppointmentsLoading] = useState(false);
+  const [appointmentsError, setAppointmentsError] = useState("");
 
   useEffect(() => {
     const loadDoctors = async () => {
@@ -57,6 +60,26 @@ export default function BookAppointment() {
     };
 
     loadDoctors();
+  }, []);
+
+  const loadMyAppointments = async () => {
+    setAppointmentsLoading(true);
+    setAppointmentsError("");
+    try {
+      const { data } = await axiosInstance.get("/home/appointments");
+      setMyAppointments(Array.isArray(data) ? data : []);
+    } catch (error) {
+      setAppointmentsError(
+        error.response?.data?.msg || "Failed to load your appointments"
+      );
+      setMyAppointments([]);
+    } finally {
+      setAppointmentsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadMyAppointments();
   }, []);
 
   const specialities = useMemo(() => {
@@ -145,6 +168,7 @@ export default function BookAppointment() {
       );
 
       setStep(3);
+      await loadMyAppointments();
     } catch (err) {
       setBookingError(err.response?.data?.message || "Booking failed");
     } finally {
@@ -362,6 +386,85 @@ export default function BookAppointment() {
             Reset form
           </button>
         </div>
+      </div>
+
+      <div className="mt-8 bg-white rounded-2xl shadow-md p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-2xl font-bold text-[#14532d]">My Appointments</h2>
+          <button
+            type="button"
+            onClick={loadMyAppointments}
+            className="text-sm px-3 py-1.5 rounded-lg border border-gray-300 hover:border-[#2ecc71] text-gray-700"
+          >
+            Refresh
+          </button>
+        </div>
+
+        {appointmentsError && (
+          <div className="text-sm text-red-600 mb-3">{appointmentsError}</div>
+        )}
+
+        {appointmentsLoading ? (
+          <p className="text-sm text-gray-500">Loading appointments...</p>
+        ) : myAppointments.length === 0 ? (
+          <p className="text-sm text-gray-500">No appointments booked yet.</p>
+        ) : (
+          <div className="space-y-3">
+            {myAppointments
+              .slice()
+              .sort(
+                (a, b) =>
+                  new Date(b.appointmentDate || b.date).getTime() -
+                  new Date(a.appointmentDate || a.date).getTime()
+              )
+              .map((appointment) => (
+                <div
+                  key={appointment._id}
+                  className="border border-gray-200 rounded-xl p-4"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+                    <p className="font-semibold text-[#14532d]">
+                      {appointment.doctorName || appointment.doctor?.name || "Doctor"}
+                    </p>
+                    <span
+                      className={`text-xs px-2.5 py-1 rounded-full capitalize ${
+                        appointment.status === "confirmed"
+                          ? "bg-green-100 text-green-700"
+                          : appointment.status === "cancelled"
+                          ? "bg-red-100 text-red-700"
+                          : "bg-yellow-100 text-yellow-700"
+                      }`}
+                    >
+                      {appointment.status || "pending"}
+                    </span>
+                  </div>
+
+                  <p className="text-sm text-gray-600">
+                    {(appointment.speciality || appointment.doctor?.specialization || "Speciality")}
+                    {" | "}
+                    {(appointment.hospitalName || appointment.doctor?.hospital || "Hospital")}
+                  </p>
+                  <p className="text-sm text-gray-700 mt-1">
+                    {new Date(appointment.appointmentDate || appointment.date).toLocaleDateString("en-IN", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                    {" at "}
+                    <span className="font-medium">
+                      {appointment.slotTime || appointment.startTime || "09:00"}
+                    </span>
+                  </p>
+
+                  {appointment.reason && (
+                    <p className="text-sm text-gray-600 mt-1">
+                      Reason: {appointment.reason}
+                    </p>
+                  )}
+                </div>
+              ))}
+          </div>
+        )}
       </div>
     </div>
   );
