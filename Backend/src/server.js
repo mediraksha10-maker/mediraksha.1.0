@@ -162,11 +162,7 @@ app.use("/api/slots", slotRoutes);
 
 if (process.env.NODE_ENV === "production") {
   const frontendPath = path.join(__dirname, "../../Frontend/dist");
-
-  // Serve static files
   app.use(express.static(frontendPath));
-
-  // React/Vite SPA fallback
   app.get("*", (_req, res) => {
     res.sendFile(path.join(frontendPath, "index.html"));
   });
