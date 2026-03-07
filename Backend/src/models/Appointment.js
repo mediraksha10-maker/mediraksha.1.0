@@ -14,6 +14,22 @@ const appointmentSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    slotId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Slot",
+      default: null,
+      index: true,
+    },
+    requestGroupId: {
+      type: String,
+      default: null,
+      index: true,
+    },
+    slotTime: {
+      type: String,
+      trim: true,
+      default: "",
+    },
     doctorName: {
       type: String,
       required: true,

@@ -1,5 +1,8 @@
 import mongoose from "mongoose";
 import Slot from "../models/Slot.js";
+import Appointment from "../models/Appointment.js";
+import Doctor from "../models/Doctor.js";
+import { cacheDel } from "../redis/cache.js";
 
 // POST /api/slots/create
 export const createSlots = async (req, res) => {
@@ -145,6 +148,127 @@ export const getMySlotsByDoctor = async (req, res) => {
     return res.status(200).json(doctors);
   } catch (error) {
     console.error("getMySlotsByDoctor error:", error);
+    return res.status(500).json({ message: "Server error", msg: "Server error" });
+  }
+};
+
+// GET /api/slots/:doctorId/:date
+export const getDoctorSlotsByDate = async (req, res) => {
+  try {
+    const { doctorId, date } = req.params;
+
+    if (!mongoose.isValidObjectId(doctorId)) {
+      return res.status(400).json({ message: "Invalid doctorId", msg: "Invalid doctorId" });
+    }
+
+    if (!date || typeof date !== "string") {
+      return res.status(400).json({ message: "date is required", msg: "date is required" });
+    }
+
+    const slots = await Slot.find({ doctorId, date: date.trim(), status: "available" })
+      .sort({ time: 1 })
+      .lean();
+
+    return res.status(200).json(slots);
+  } catch (error) {
+    console.error("getDoctorSlotsByDate error:", error);
+    return res.status(500).json({ message: "Server error", msg: "Server error" });
+  }
+};
+
+// POST /api/slots/book
+export const bookSlotAppointment = async (req, res) => {
+  try {
+    const patientId = req.user;
+    const { slotId, slotIds, patient } = req.body || {};
+
+    if (!mongoose.isValidObjectId(patientId)) {
+      return res.status(401).json({ message: "Invalid session", msg: "Invalid session" });
+    }
+
+    const selectedIdsRaw = Array.isArray(slotIds) ? slotIds : [slotId];
+    const selectedIds = [...new Set(
+      selectedIdsRaw
+        .filter((id) => typeof id === "string")
+        .map((id) => id.trim())
+        .filter(Boolean)
+    )];
+
+    if (selectedIds.length === 0 || selectedIds.length > 2) {
+      return res.status(400).json({
+        message: "Select 1 or 2 slots",
+        msg: "Select 1 or 2 slots",
+      });
+    }
+
+    if (!selectedIds.every((id) => mongoose.isValidObjectId(id))) {
+      return res.status(400).json({ message: "Invalid slotIds", msg: "Invalid slotIds" });
+    }
+
+    const slots = await Slot.find({ _id: { $in: selectedIds } });
+    if (slots.length !== selectedIds.length) {
+      return res.status(404).json({ message: "Some slots were not found", msg: "Some slots were not found" });
+    }
+
+    const doctorId = String(slots[0].doctorId);
+    const allSameDoctor = slots.every((slot) => String(slot.doctorId) === doctorId);
+    if (!allSameDoctor) {
+      return res.status(400).json({
+        message: "Selected slots must belong to same doctor",
+        msg: "Selected slots must belong to same doctor",
+      });
+    }
+
+    const unavailableSlot = slots.find((slot) => slot.status !== "available");
+    if (unavailableSlot) {
+      return res.status(409).json({ message: "One of the slots is not available", msg: "One of the slots is not available" });
+    }
+
+    const doctor = await Doctor.findById(doctorId).lean();
+    if (!doctor) {
+      return res.status(404).json({ message: "Doctor not found", msg: "Doctor not found" });
+    }
+
+    const notes = patient?.notes?.trim();
+    const requestGroupId = new mongoose.Types.ObjectId().toString();
+
+    const appointmentDocs = slots.map((slot) => ({
+      patientId,
+      doctorId: slot.doctorId,
+      slotId: slot._id,
+      requestGroupId,
+      slotTime: slot.time,
+      doctorName: doctor.name?.trim() || "Unknown Doctor",
+      speciality: doctor.specialization?.trim() || "General Physician",
+      hospitalName: doctor.hospital?.trim() || "Unknown Hospital",
+      appointmentDate: new Date(`${slot.date}T00:00:00`),
+      reasonOfAppointment: notes || "Booked from available slots",
+      status: "pending",
+    }));
+
+    const appointments = await Appointment.insertMany(appointmentDocs);
+
+    await Slot.updateMany({
+      _id: { $in: selectedIds },
+    }, {
+      $set: { status: "reserved" },
+    });
+
+    await cacheDel(
+      `cache:user:appointments:${patientId}`,
+      `cache:doctor:appointments:${doctorId}`,
+      `cache:doctor:patients:${doctorId}`
+    );
+
+    return res.status(201).json({
+      message: "Slots sent to doctor for approval",
+      appointment: {
+        _id: appointments[0]?._id,
+        bookingId: requestGroupId,
+      },
+    });
+  } catch (error) {
+    console.error("bookSlotAppointment error:", error);
     return res.status(500).json({ message: "Server error", msg: "Server error" });
   }
 };

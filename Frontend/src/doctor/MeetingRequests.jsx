@@ -37,10 +37,7 @@ export default function MeetingRequests() {
     setActing(id);
     try {
       await axiosInstance.patch(`/doctor/appointments/${id}`, { status });
-      // Optimistically update local state
-      setMeetings((prev) =>
-        prev.map((m) => (m._id === id ? { ...m, status } : m))
-      );
+      await fetchMeetings();
     } catch (err) {
       alert(err.response?.data?.msg || "Action failed.");
     } finally {

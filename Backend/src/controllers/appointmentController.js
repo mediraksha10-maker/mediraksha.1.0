@@ -1,8 +1,15 @@
 import Appointment from "../models/Appointment.js";
 import Doctor from "../models/Doctor.js";
+import Slot from "../models/Slot.js";
 import { cacheDel, cacheGet, cacheSet } from "../redis/cache.js";
 
 const LEGACY_DEFAULT_START_TIME = "09:00";
+
+const getStartTime = (slotTime) => {
+  if (!slotTime || typeof slotTime !== "string") return LEGACY_DEFAULT_START_TIME;
+  const [start] = slotTime.split("-").map((v) => v?.trim());
+  return start || LEGACY_DEFAULT_START_TIME;
+};
 
 const normalizeDateOnly = (value) => {
   const date = new Date(value);
@@ -23,7 +30,7 @@ const toPatientAppointmentDTO = (appointment) => {
     hospitalName,
     // Legacy compatibility for existing UI pieces.
     date: appointment.appointmentDate,
-    startTime: LEGACY_DEFAULT_START_TIME,
+    startTime: getStartTime(appointment.slotTime),
     reason: appointment.reasonOfAppointment,
     doctor: {
       name: doctorName,
@@ -38,7 +45,7 @@ const toDoctorAppointmentDTO = (appointment) => ({
   patient: appointment.patientId,
   // Legacy compatibility for existing doctor views.
   date: appointment.appointmentDate,
-  startTime: LEGACY_DEFAULT_START_TIME,
+  startTime: getStartTime(appointment.slotTime),
   reason: appointment.reasonOfAppointment,
 });
 
@@ -134,6 +141,9 @@ export const cancelAppointment = async (req, res) => {
 
     appointment.status = "cancelled";
     await appointment.save();
+    if (appointment.slotId) {
+      await Slot.findByIdAndUpdate(appointment.slotId, { status: "available" });
+    }
     await cacheDel(
       `cache:user:appointments:${req.user}`,
       `cache:doctor:appointments:${appointment.doctorId}`,
@@ -207,9 +217,51 @@ export const updateAppointmentStatus = async (req, res) => {
     if (!appointment) {
       return res.status(404).json({ msg: "Appointment not found" });
     }
+    if (appointment.status !== "pending") {
+      return res.status(409).json({ msg: "Only pending requests can be updated" });
+    }
 
     appointment.status = status;
     await appointment.save();
+
+    if (status === "confirmed") {
+      if (appointment.slotId) {
+        await Slot.findByIdAndUpdate(appointment.slotId, { status: "booked" });
+      }
+
+      if (appointment.requestGroupId) {
+        const siblings = await Appointment.find({
+          requestGroupId: appointment.requestGroupId,
+          doctorId: req.user,
+          patientId: appointment.patientId,
+          _id: { $ne: appointment._id },
+          status: "pending",
+        });
+
+        const siblingSlotIds = siblings
+          .map((item) => item.slotId)
+          .filter(Boolean);
+
+        if (siblings.length > 0) {
+          await Appointment.updateMany(
+            { _id: { $in: siblings.map((item) => item._id) } },
+            { $set: { status: "cancelled" } }
+          );
+        }
+
+        if (siblingSlotIds.length > 0) {
+          await Slot.updateMany(
+            { _id: { $in: siblingSlotIds } },
+            { $set: { status: "available" } }
+          );
+        }
+      }
+    }
+
+    if (status === "cancelled" && appointment.slotId) {
+      await Slot.findByIdAndUpdate(appointment.slotId, { status: "available" });
+    }
+
     await cacheDel(
       `cache:doctor:appointments:${req.user}`,
       `cache:user:appointments:${appointment.patientId}`,
