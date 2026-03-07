@@ -40,17 +40,44 @@ export const createSlots = async (req, res) => {
       return res.status(400).json({ message: "No valid time slots provided", msg: "No valid time slots provided" });
     }
 
-    const docs = normalizedTimes.map((time) => ({
+    const normalizedDate = date.trim();
+    const existingSlots = await Slot.find({
       doctorId: authDoctorId,
-      date: date.trim(),
+      date: normalizedDate,
+      time: { $in: normalizedTimes },
+    }).select("time").lean();
+
+    const existingTimes = new Set(existingSlots.map((slot) => slot.time));
+    const newTimes = normalizedTimes.filter((time) => !existingTimes.has(time));
+
+    if (newTimes.length === 0) {
+      return res.status(409).json({
+        message: "Selected slots already exist for this date",
+        msg: "Selected slots already exist for this date",
+        createdCount: 0,
+        skippedTimes: normalizedTimes,
+      });
+    }
+
+    const docs = newTimes.map((time) => ({
+      doctorId: authDoctorId,
+      date: normalizedDate,
       time,
     }));
 
     const createdSlots = await Slot.insertMany(docs);
 
     return res.status(201).json({
-      message: "Slots published successfully",
-      msg: "Slots published successfully",
+      message:
+        newTimes.length === normalizedTimes.length
+          ? "Slots published successfully"
+          : "Some slots already existed and were skipped",
+      msg:
+        newTimes.length === normalizedTimes.length
+          ? "Slots published successfully"
+          : "Some slots already existed and were skipped",
+      createdCount: createdSlots.length,
+      skippedTimes: normalizedTimes.filter((time) => existingTimes.has(time)),
       slots: createdSlots,
     });
   } catch (error) {
@@ -68,7 +95,7 @@ export const getDoctorsWithSlots = async (_req, res) => {
       {
         $group: {
           _id: "$doctorId",
-          availability: { $push: { $concat: ["$date", " | ", "$time"] } },
+          availability: { $addToSet: { $concat: ["$date", " | ", "$time"] } },
         },
       },
       {
@@ -117,7 +144,7 @@ export const getMySlotsByDoctor = async (req, res) => {
       {
         $group: {
           _id: "$doctorId",
-          availability: { $push: { $concat: ["$date", " | ", "$time"] } },
+          availability: { $addToSet: { $concat: ["$date", " | ", "$time"] } },
         },
       },
       {
@@ -165,9 +192,16 @@ export const getDoctorSlotsByDate = async (req, res) => {
       return res.status(400).json({ message: "date is required", msg: "date is required" });
     }
 
-    const slots = await Slot.find({ doctorId, date: date.trim(), status: "available" })
+    const rawSlots = await Slot.find({ doctorId, date: date.trim(), status: "available" })
       .sort({ time: 1 })
       .lean();
+
+    const seenTimes = new Set();
+    const slots = rawSlots.filter((slot) => {
+      if (seenTimes.has(slot.time)) return false;
+      seenTimes.add(slot.time);
+      return true;
+    });
 
     return res.status(200).json(slots);
   } catch (error) {
@@ -194,34 +228,39 @@ export const bookSlotAppointment = async (req, res) => {
         .filter(Boolean)
     )];
 
-    if (selectedIds.length === 0 || selectedIds.length > 2) {
+    if (selectedIds.length !== 1) {
       return res.status(400).json({
-        message: "Select 1 or 2 slots",
-        msg: "Select 1 or 2 slots",
+        message: "Select exactly one slot",
+        msg: "Select exactly one slot",
       });
     }
 
-    if (!selectedIds.every((id) => mongoose.isValidObjectId(id))) {
-      return res.status(400).json({ message: "Invalid slotIds", msg: "Invalid slotIds" });
+    if (!mongoose.isValidObjectId(selectedIds[0])) {
+      return res.status(400).json({ message: "Invalid slotId", msg: "Invalid slotId" });
     }
 
-    const slots = await Slot.find({ _id: { $in: selectedIds } });
-    if (slots.length !== selectedIds.length) {
-      return res.status(404).json({ message: "Some slots were not found", msg: "Some slots were not found" });
+    const slot = await Slot.findById(selectedIds[0]);
+    if (!slot) {
+      return res.status(404).json({ message: "Slot not found", msg: "Slot not found" });
     }
 
-    const doctorId = String(slots[0].doctorId);
-    const allSameDoctor = slots.every((slot) => String(slot.doctorId) === doctorId);
-    if (!allSameDoctor) {
-      return res.status(400).json({
-        message: "Selected slots must belong to same doctor",
-        msg: "Selected slots must belong to same doctor",
+    const doctorId = String(slot.doctorId);
+    const appointmentDate = new Date(`${slot.date}T00:00:00`);
+    const duplicateFilter = {
+      patientId,
+      doctorId: slot.doctorId,
+      appointmentDate,
+      status: { $ne: "cancelled" },
+    };
+
+    const existingAppointment = await Appointment.findOne(duplicateFilter)
+      .select("slotTime")
+      .lean();
+    if (existingAppointment) {
+      return res.status(409).json({
+        message: `You already have an appointment with this doctor on this date${existingAppointment.slotTime ? ` at ${existingAppointment.slotTime}` : ""}`,
+        msg: "You already have an appointment with this doctor on this date",
       });
-    }
-
-    const unavailableSlot = slots.find((slot) => slot.status !== "available");
-    if (unavailableSlot) {
-      return res.status(409).json({ message: "One of the slots is not available", msg: "One of the slots is not available" });
     }
 
     const doctor = await Doctor.findById(doctorId).lean();
@@ -229,30 +268,49 @@ export const bookSlotAppointment = async (req, res) => {
       return res.status(404).json({ message: "Doctor not found", msg: "Doctor not found" });
     }
 
+    const bookedSlot = await Slot.findOneAndUpdate(
+      { _id: slot._id, status: "available" },
+      { $set: { status: "booked" } },
+      { new: true }
+    );
+    if (!bookedSlot) {
+      return res.status(409).json({ message: "This slot is not available", msg: "This slot is not available" });
+    }
+
+    const existingAfterLock = await Appointment.findOne(duplicateFilter)
+      .select("_id")
+      .lean();
+    if (existingAfterLock) {
+      await Slot.findByIdAndUpdate(bookedSlot._id, { $set: { status: "available" } });
+      return res.status(409).json({
+        message: "You already have an appointment with this doctor on this date",
+        msg: "You already have an appointment with this doctor on this date",
+      });
+    }
+
     const notes = patient?.notes?.trim();
     const requestGroupId = new mongoose.Types.ObjectId().toString();
-
-    const appointmentDocs = slots.map((slot) => ({
+    const appointmentData = {
       patientId,
-      doctorId: slot.doctorId,
-      slotId: slot._id,
+      doctorId: bookedSlot.doctorId,
+      slotId: bookedSlot._id,
       requestGroupId,
-      slotTime: slot.time,
+      slotTime: bookedSlot.time,
       doctorName: doctor.name?.trim() || "Unknown Doctor",
       speciality: doctor.specialization?.trim() || "General Physician",
       hospitalName: doctor.hospital?.trim() || "Unknown Hospital",
-      appointmentDate: new Date(`${slot.date}T00:00:00`),
+      appointmentDate,
       reasonOfAppointment: notes || "Booked from available slots",
-      status: "pending",
-    }));
+      status: "confirmed",
+    };
 
-    const appointments = await Appointment.insertMany(appointmentDocs);
-
-    await Slot.updateMany({
-      _id: { $in: selectedIds },
-    }, {
-      $set: { status: "reserved" },
-    });
+    let appointment;
+    try {
+      appointment = await Appointment.create(appointmentData);
+    } catch (createError) {
+      await Slot.findByIdAndUpdate(bookedSlot._id, { $set: { status: "available" } });
+      throw createError;
+    }
 
     await cacheDel(
       `cache:user:appointments:${patientId}`,
@@ -261,9 +319,9 @@ export const bookSlotAppointment = async (req, res) => {
     );
 
     return res.status(201).json({
-      message: "Slots sent to doctor for approval",
+      message: "Appointment confirmed",
       appointment: {
-        _id: appointments[0]?._id,
+        _id: appointment._id,
         bookingId: requestGroupId,
       },
     });

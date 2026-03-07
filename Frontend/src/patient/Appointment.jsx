@@ -26,7 +26,7 @@ export default function BookAppointment() {
   const [date, setDate] = useState("");
   const [slots, setSlots] = useState([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
-  const [selectedSlots, setSelectedSlots] = useState([]);
+  const [selectedSlot, setSelectedSlot] = useState(null);
 
   const [patient, setPatient] = useState({
     name: "",
@@ -75,14 +75,14 @@ export default function BookAppointment() {
     setDoctorList(filtered);
     setSelectedDoctor(null);
     setSlots([]);
-    setSelectedSlots([]);
+    setSelectedSlot(null);
   }, [speciality, allDoctors]);
 
   const handleSelectDoctor = (doc) => {
     setSelectedDoctor(doc);
     setStep(2);
     setSlots([]);
-    setSelectedSlots([]);
+    setSelectedSlot(null);
     setBookingError("");
     setBookingSuccess(null);
   };
@@ -92,7 +92,7 @@ export default function BookAppointment() {
 
     setSlotsLoading(true);
     setSlots([]);
-    setSelectedSlots([]);
+    setSelectedSlot(null);
     setBookingError("");
     setBookingSuccess(null);
 
@@ -107,7 +107,7 @@ export default function BookAppointment() {
   };
 
   const handleConfirm = async () => {
-    if (!selectedDoctor || selectedSlots.length === 0 || !date) return;
+    if (!selectedDoctor || !selectedSlot || !date) return;
 
     if (!patient.name || !patient.phone) {
       setBookingError("Please fill your name and phone number.");
@@ -120,7 +120,7 @@ export default function BookAppointment() {
 
     try {
       const { data } = await axiosInstance.post("/slots/book", {
-        slotIds: selectedSlots.map((slot) => slot._id),
+        slotId: selectedSlot._id,
         patient: {
           name: patient.name,
           phone: patient.phone,
@@ -133,13 +133,13 @@ export default function BookAppointment() {
         bookingId: data?.appointment?.bookingId,
         doctor: selectedDoctor,
         date,
-        slot: selectedSlots.map((slot) => slot.time).join(", "),
+        slot: selectedSlot.time,
       });
 
       setSlots((prev) =>
         prev.map((s) =>
-          selectedSlots.some((selected) => selected._id === s._id)
-            ? { ...s, status: "reserved" }
+          selectedSlot._id === s._id
+            ? { ...s, status: "booked" }
             : s
         )
       );
@@ -159,7 +159,7 @@ export default function BookAppointment() {
     setSelectedDoctor(null);
     setDate("");
     setSlots([]);
-    setSelectedSlots([]);
+    setSelectedSlot(null);
     setPatient({ name: "", phone: "", age: "", notes: "" });
     setBookingError("");
     setBookingSuccess(null);
@@ -167,13 +167,7 @@ export default function BookAppointment() {
 
   const toggleSelectedSlot = (slot) => {
     if (slot.status !== "available") return;
-
-    setSelectedSlots((prev) => {
-      const exists = prev.some((item) => item._id === slot._id);
-      if (exists) return prev.filter((item) => item._id !== slot._id);
-      if (prev.length >= 2) return prev;
-      return [...prev, slot];
-    });
+    setSelectedSlot((prev) => (prev?._id === slot._id ? null : slot));
   };
 
   return (
@@ -294,7 +288,7 @@ export default function BookAppointment() {
           </button>
 
           <p className="text-xs text-gray-500 mb-2">
-            Select up to 2 preferred slots.
+            Select one slot for this day.
           </p>
 
           <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -307,7 +301,7 @@ export default function BookAppointment() {
                 className={`text-xs border rounded-lg px-2 py-2 ${
                   slot.status !== "available"
                     ? "bg-gray-100 text-gray-400 line-through"
-                    : selectedSlots.some((selected) => selected._id === slot._id)
+                    : selectedSlot?._id === slot._id
                     ? "bg-[#2ecc71] text-white"
                     : "bg-white text-[#14532d]"
                 }`}
@@ -349,13 +343,13 @@ export default function BookAppointment() {
 
           {bookingSuccess && (
             <div className="text-xs bg-green-100 p-2 rounded mb-2">
-              Slot request sent to doctor
+              Appointment confirmed successfully
             </div>
           )}
 
           <button
             onClick={handleConfirm}
-            disabled={selectedSlots.length === 0 || bookingLoading}
+            disabled={!selectedSlot || bookingLoading}
             className="w-full bg-[#2ecc71] text-white rounded-lg py-2 disabled:bg-gray-300"
           >
             {bookingLoading ? "Booking..." : "Confirm Appointment"}
