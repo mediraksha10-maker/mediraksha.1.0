@@ -99,7 +99,7 @@ export default function RegisteredDoctor({ doctors = [], onRemove, onChangeClick
               </button>
               <button
                 className="btn btn-primary btn-xs gap-1"
-                onClick={() => navigate("/appointments")}
+                onClick={() => navigate("/appointment")}
               >
                 <CalendarPlus size={13} /> Book
               </button>

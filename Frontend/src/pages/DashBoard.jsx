@@ -1,7 +1,8 @@
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { Link } from "react-router";
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router";
 import axiosInstance from "../api/axios";
 import car1 from '../assets/car1.jpg';
 import car2 from '../assets/car21.png';
@@ -29,6 +30,7 @@ const quickActions = [
 ];
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [name, setName] = useState("Sign up to access features");
 
   const getUser = async () => {
@@ -42,9 +44,8 @@ export default function Dashboard() {
   };
   const getDoctor = async () => {
     try {
-      const res = await axiosInstance.get('/doctor');
-      const data = res.data;
-      window.location.href = '/doctordash';
+      await axiosInstance.get('/doctor');
+      navigate('/doctordash');
     } catch (error) {
       // console.error(error.response?.data?.msg || "Error fetching user details");
     }

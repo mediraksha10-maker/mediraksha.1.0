@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { useNavigate } from "react-router";
 import axiosInstance from "../api/axios";
 import toast from "react-hot-toast";
 import { AGE_MAX, AGE_MIN, parseAge } from "../utils/validation";
 
 const DoctorDetails = () => {
+  const navigate = useNavigate();
   const [name, setName] = useState("");
   const [hospital, setHospital] = useState("");
   const [age, setAge] = useState("");
@@ -29,7 +31,7 @@ const DoctorDetails = () => {
       toast.success("Doctor details submitted successfully!");
 
       // Redirect to homepage or dashboard
-      window.location.href = "/doctordash";
+      navigate("/doctordash");
     } catch (error) {
       console.error("Error saving doctor details:", error.response?.data || error.message);
     }

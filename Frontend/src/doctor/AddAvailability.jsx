@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Calendar, Clock, Hospital } from "lucide-react";
 import axiosInstance from "../api/axios";
 
-export default function DoctorAvailability() {
+export default function AddAvailability() {
   const [doctors, setDoctors] = useState([]);
   const [doctorId, setDoctorId] = useState("");
   const [date, setDate] = useState("");
@@ -130,9 +130,8 @@ export default function DoctorAvailability() {
           Doctor Availability
         </h1>
 
-        {/* Patient View */}
         <section>
-          <h2 className="text-xl font-semibold mb-4">Available Doctors</h2>
+          <h2 className="text-xl font-semibold mb-4">Your Published Slots</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {doctorsWithGroupedSlots.map((doc) => (
               <div key={doc._id} className="card bg-base-100 shadow-lg">
@@ -143,9 +142,9 @@ export default function DoctorAvailability() {
                     <Hospital size={16} /> {doc.hospital}
                   </p>
 
-                  <p className="text-sm text-base-content/70">
-                    {doc.specialization}
-                  </p>
+                    <p className="text-sm text-base-content/70">
+                      {doc.specialization}
+                    </p>
 
                   <div className="mt-3">
                     <p className="font-medium flex items-center gap-2">

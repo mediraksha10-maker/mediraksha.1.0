@@ -29,7 +29,7 @@ const quickActions = [
     icon: <UserSearch />,
     description: "See the doctor availability.",
     style: "btn-neutral",
-    view: "/doctoravailable",
+    view: "/slots",
   },
   {
     id: 4,

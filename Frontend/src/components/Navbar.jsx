@@ -44,7 +44,7 @@ export default function Navbar() {
                     <Link to="/upload">Upload report</Link>
                   </li>
                   <li>
-                    <Link to="/doctoravailable">Doctor Availability</Link>
+                    <Link to="/slots">Doctor Availability</Link>
                   </li>
                 </ul>
               </details> */}
@@ -75,7 +75,7 @@ export default function Navbar() {
                   <Link to="/upload">Upload report</Link>
                 </li>
                 <li>
-                  <Link to="/doctoravailable">Doctor Availability</Link>
+                  <Link to="/slots">Doctor Availability</Link>
                 </li>
                 <li>
                   <Link to="/mydoctor">Search for doctor</Link>
