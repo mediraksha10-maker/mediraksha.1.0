@@ -3,6 +3,7 @@ import doctor from '../models/Doctor.js'
 import bcrypt from 'bcryptjs'
 import jwt from "jsonwebtoken"
 import dotenv from "dotenv"
+import { getAuthCookieOptions, getClearCookieOptions } from "../utils/cookieOptions.js";
 dotenv.config();
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -22,12 +23,7 @@ export async function createUser(req, res) {
         });
 
         // set cookie
-        res.cookie("token", token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
-            maxAge: 7 * 24 * 60 * 60 * 1000,
-        });
+        res.cookie("token", token, getAuthCookieOptions());
 
         res.status(201).json({msg:"User created successfully"});
     } catch (error) {
@@ -50,12 +46,7 @@ export async function getUser(req, res) {
             expiresIn: "2d",
         });
 
-        res.cookie("token", token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
-            maxAge: 7 * 24 * 60 * 60 * 1000,
-        });
+        res.cookie("token", token, getAuthCookieOptions());
 
         res.json({ msg: token });
     } catch (error) {
@@ -65,8 +56,7 @@ export async function getUser(req, res) {
 }
 
 export const logout = (req, res) => {
-  res.clearCookie("token");
+  res.clearCookie("token", getClearCookieOptions());
   res.json({ msg: "Logged out" });
 };
-
 
