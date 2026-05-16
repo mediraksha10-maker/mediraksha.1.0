@@ -1,7 +1,6 @@
 import express from "express"
 import { getUser, createUser, logout } from "../controllers/authController.js";
 import { getDoctor, createDoctor } from "../controllers/doctorAuthController.js";
-import { chatWithAI } from "../controllers/chatController.js";
 
 const router = express.Router();
 
@@ -10,6 +9,6 @@ router.post('/login', getUser);
 router.post('/logout', logout);
 router.post('/doctor', createDoctor);
 router.post('/doctor/login', getDoctor);
-router.post('/chat', chatWithAI);
+// /chat was moved to /api/home/chat (protected — requires patient auth)
 
 export default router;

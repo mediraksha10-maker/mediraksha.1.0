@@ -1,6 +1,7 @@
 import User from "../models/User.js";
 import Doctor from "../models/Doctor.js";
 import Appointment from "../models/Appointment.js";
+import mongoose from "mongoose";
 import { cacheDel, cacheGet, cacheSet } from "../redis/cache.js";
 
 const MAX_DOCTORS = 3;
@@ -63,6 +64,11 @@ export const addMyDoctor = async (req, res) => {
   try {
     const { doctorId } = req.body;
 
+    // Validate ObjectId before DB query to prevent CastError 500s
+    if (!mongoose.isValidObjectId(doctorId)) {
+      return res.status(400).json({ msg: "Invalid doctorId" });
+    }
+
     const doctor = await Doctor.findById(doctorId);
     if (!doctor) return res.status(404).json({ msg: "Doctor not found" });
 
@@ -102,6 +108,11 @@ export const addMyDoctor = async (req, res) => {
 export const removeMyDoctor = async (req, res) => {
   try {
     const { doctorId } = req.params;
+
+    // Bug 14: Validate ObjectId to prevent CastError / 500 on malformed IDs
+    if (!mongoose.isValidObjectId(doctorId)) {
+      return res.status(400).json({ msg: "Invalid doctorId" });
+    }
 
     await User.findByIdAndUpdate(req.user, {
       $pull: { registeredDoctors: doctorId },

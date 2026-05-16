@@ -1,4 +1,5 @@
 import express from "express";
+import mongoose from "mongoose";
 import doctor from '../models/Doctor.js';
 
 import { getMyPatients } from "../controllers/doctorController.js";
@@ -38,17 +39,22 @@ router.get('/', async (req, res) => {
 router.patch('/details', async (req, res) => {
     try {
         const userId = req.user;
-        const {name, hospital, age} = req.body;
+        const { name, hospital, age, specialization } = req.body;
         const parsedAge = parseAge(age);
 
         if (!isNonEmptyString(name) || !isNonEmptyString(hospital) || parsedAge === null) {
             return res.status(400).json({ msg: "Provide valid name, hospital and age (1-120)" });
         }
 
+        const updateFields = { name: name.trim(), hospital: hospital.trim(), age: parsedAge };
+        if (isNonEmptyString(specialization)) {
+            updateFields.specialization = specialization.trim();
+        }
+
         // Update user details
         const updatedDoctor = await doctor.findByIdAndUpdate(
             userId,
-            { name: name.trim(), hospital: hospital.trim(), age: parsedAge},
+            updateFields,
             { new: true, runValidators: true, select: "-password" }
         );
 
@@ -73,16 +79,21 @@ router.patch('/update', async (req, res) => {
     try {
         const userId = req.user;
 
-        const { doctorId, name, age, hospital } = req.body;
+        const { doctorId, name, age, hospital, specialization } = req.body;
         const parsedAge = parseAge(age);
         if (!isNonEmptyString(name) || !isNonEmptyString(doctorId) || !isNonEmptyString(hospital) || parsedAge === null) {
             return res.status(400).json({ msg: "Provide valid doctorId, name, hospital and age (1-120)" });
         }
 
+        const updateFields = { doctorId: doctorId.trim(), name: name.trim(), hospital: hospital.trim(), age: parsedAge };
+        if (isNonEmptyString(specialization)) {
+            updateFields.specialization = specialization.trim();
+        }
+
         // Update user details
         const updatedDoctor = await doctor.findByIdAndUpdate(
             userId,
-            { doctorId: doctorId.trim(), name: name.trim(), hospital: hospital.trim(), age: parsedAge },
+            updateFields,
             { new: true, runValidators: true, select: "-password" }
         );
 
@@ -106,7 +117,6 @@ router.patch('/update', async (req, res) => {
 // appointments
 router.get("/appointments", getDoctorAppointments);
 router.patch("/appointments/:id", updateAppointmentStatus);
-router.get("/patients", getMyPatients);     
-
+router.get("/patients", getMyPatients);
 
 export default router;

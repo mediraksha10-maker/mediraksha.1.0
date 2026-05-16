@@ -89,6 +89,11 @@ export async function getAllFiles(req, res) {
 
 export async function getFileById(req, res) {
   try {
+    // Bug 11: Validate ObjectId before DB query to avoid CastError / 500 leak
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ msg: "Invalid file ID" });
+    }
+
     if (!bucket) {
       return res.status(503).json({ msg: "File service unavailable" });
     }
@@ -99,11 +104,15 @@ export async function getFileById(req, res) {
     }).lean();
     if (!report) return res.status(404).json({ msg: "File not found" });
 
+    if (!mongoose.isValidObjectId(report.fileId)) {
+      return res.status(500).json({ msg: "File record is corrupted" });
+    }
+
     const fileObjectId = new mongoose.Types.ObjectId(report.fileId);
     const file = await bucket
       .find({ _id: fileObjectId })
       .toArray();
-    if (!file.length) return res.status(404).json({ msg: "File not found" });
+    if (!file.length) return res.status(404).json({ msg: "File not found in storage" });
 
     res.setHeader(
       "Content-Type",
@@ -121,9 +130,13 @@ export async function getFileById(req, res) {
   }
 }
 
-
 export async function deleteFile(req, res) {
   try {
+    // Bug 11: Validate ObjectId before DB query
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ msg: "Invalid file ID" });
+    }
+
     const report = await Report.findOne({
       _id: req.params.id,
       patientId: String(req.user),

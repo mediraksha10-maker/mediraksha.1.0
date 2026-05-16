@@ -1,6 +1,7 @@
 import Appointment from "../models/Appointment.js";
 import Doctor from "../models/Doctor.js";
 import Slot from "../models/Slot.js";
+import mongoose from "mongoose";
 import { cacheDel, cacheGet, cacheSet } from "../redis/cache.js";
 
 const LEGACY_DEFAULT_START_TIME = "09:00";
@@ -59,6 +60,11 @@ export const bookAppointment = async (req, res) => {
       return res.status(400).json({
         msg: "doctorId, appointmentDate and reasonOfAppointment are required",
       });
+    }
+
+    // Bug 9: Validate doctorId is a real ObjectId before DB query
+    if (!mongoose.isValidObjectId(doctorId)) {
+      return res.status(400).json({ msg: "Invalid doctorId" });
     }
 
     const normalizedAppointmentDate = normalizeDateOnly(appointmentDate);
@@ -139,11 +145,25 @@ export const cancelAppointment = async (req, res) => {
       return res.status(404).json({ msg: "Appointment not found" });
     }
 
+    // Bug 10: Save the appointment status change FIRST before freeing the slot.
+    // This prevents the slot from being freed if the appointment save fails.
     appointment.status = "cancelled";
     await appointment.save();
+
+    // Free the slot only after the appointment is durably cancelled.
     if (appointment.slotId) {
-      await Slot.findByIdAndUpdate(appointment.slotId, { status: "available" });
+      try {
+        await Slot.findByIdAndUpdate(appointment.slotId, { status: "available" });
+      } catch (slotErr) {
+        // Log the failure but don't roll back — the appointment is already cancelled.
+        // The slot will be stuck as "booked" but the appointment won't be in limbo.
+        console.error(
+          `cancelAppointment: failed to free slot ${appointment.slotId}:`,
+          slotErr.message
+        );
+      }
     }
+
     await cacheDel(
       `cache:user:appointments:${req.user}`,
       `cache:doctor:appointments:${appointment.doctorId}`,
@@ -173,9 +193,6 @@ export const searchDoctors = async (req, res) => {
     res.status(500).json({ msg: "Server error" });
   }
 };
-
-
-
 
 // GET /api/doctor/appointments — all pending requests for this doctor
 export const getDoctorAppointments = async (req, res) => {

@@ -27,7 +27,15 @@ const schema = new mongoose.Schema({
         password: {
             type: String,
             required: true
-        }
+        },
+        specialization: {
+            type: String,
+            trim: true,
+        },
+        isVerified: {
+            type: Boolean,
+            default: false,   // set to true in MongoDB Atlas (or via admin API) to approve a doctor
+        },
     },
     {timestamps: true}
 );

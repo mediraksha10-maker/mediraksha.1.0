@@ -1,16 +1,19 @@
-import jwt from "jsonwebtoken";
-const JWT_SECRET = process.env.JWT_SECRET;
+import jwt from 'jsonwebtoken';
 
 const authMiddleware = (req, res, next) => {
   const token = req.cookies.token;
-  if (!token) return res.status(401).json({ msg: 'No token, authorization denied' });
+  if (!token) {
+    return res.status(401).json({ msg: 'No token, authorization denied' });
+  }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    // Read JWT_SECRET inline — not at module load — so dotenv is guaranteed to have run first
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = decoded.id;
+    req.role = decoded.role; // 'patient' | 'doctor'
     next();
   } catch (err) {
-    console.log('error is ', err);
+    console.error('authMiddleware token error:', err.message);
     res.status(401).json({ msg: 'Token is not valid' });
   }
 };
