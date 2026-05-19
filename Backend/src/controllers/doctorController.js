@@ -5,27 +5,40 @@ import mongoose from "mongoose";
 import { cacheDel, cacheGet, cacheSet } from "../redis/cache.js";
 
 const MAX_DOCTORS = 3;
+const MAX_SEARCH_LIMIT = 50;
+
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const parseSearchLimit = (value) => {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1) return 20;
+  return Math.min(parsed, MAX_SEARCH_LIMIT);
+};
 
 // GET /api/home/doctors?name=&specialization=
 export const searchDoctor = async (req, res) => {
   try {
-    const { name, specialization } = req.query;
+    const { name, specialization, limit } = req.query;
     const normalizedName = (name || "").trim().toLowerCase();
     const normalizedSpecialization = (specialization || "").trim().toLowerCase();
-    const cacheKey = `cache:doctor:search:${normalizedName}:${normalizedSpecialization}`;
+    const searchLimit = parseSearchLimit(limit);
+    const cacheKey = `cache:doctor:search:${normalizedName}:${normalizedSpecialization}:${searchLimit}`;
 
     const cachedDoctors = await cacheGet(cacheKey);
     if (cachedDoctors) {
       return res.status(200).json(cachedDoctors);
     }
 
-    const filter = {};
-    if (name)           filter.name           = { $regex: name, $options: "i" };
-    if (specialization) filter.specialization = { $regex: specialization, $options: "i" };
+    const filter = { isVerified: true };
+    if (normalizedName) filter.name = { $regex: escapeRegex(normalizedName), $options: "i" };
+    if (normalizedSpecialization) {
+      filter.specialization = { $regex: escapeRegex(normalizedSpecialization), $options: "i" };
+    }
 
-    const doctors = await Doctor.find(filter).select(
-      "name specialization hospital experience contact email"
-    );
+    const doctors = await Doctor.find(filter)
+      .select("name specialization hospital experience contact email")
+      .limit(searchLimit)
+      .lean();
     await cacheSet(cacheKey, doctors, 60);
     res.status(200).json(doctors);
   } catch (err) {
@@ -69,7 +82,7 @@ export const addMyDoctor = async (req, res) => {
       return res.status(400).json({ msg: "Invalid doctorId" });
     }
 
-    const doctor = await Doctor.findById(doctorId);
+    const doctor = await Doctor.findOne({ _id: doctorId, isVerified: true });
     if (!doctor) return res.status(404).json({ msg: "Doctor not found" });
 
     const user = await User.findById(req.user);
@@ -134,20 +147,41 @@ export const swapMyDoctor = async (req, res) => {
   try {
     const { removeId, addId } = req.body;
 
-    const newDoctor = await Doctor.findById(addId);
+    if (!mongoose.isValidObjectId(removeId) || !mongoose.isValidObjectId(addId)) {
+      return res.status(400).json({ msg: "Invalid doctor id" });
+    }
+
+    if (String(removeId) === String(addId)) {
+      return res.status(400).json({ msg: "Choose two different doctors to swap" });
+    }
+
+    const newDoctor = await Doctor.findOne({ _id: addId, isVerified: true });
     if (!newDoctor) return res.status(404).json({ msg: "Doctor not found" });
 
     const user = await User.findById(req.user);
     if (!user) return res.status(404).json({ msg: "User not found" });
 
-    user.registeredDoctors = user.registeredDoctors
-      .map(String)
-      .filter((id) => id !== String(removeId));
-
-    if (!user.registeredDoctors.map(String).includes(String(addId))) {
-      user.registeredDoctors.push(addId);
+    const currentDoctorIds = user.registeredDoctors.map(String);
+    const hasDoctorToRemove = currentDoctorIds.includes(String(removeId));
+    if (!hasDoctorToRemove) {
+      return res.status(400).json({ msg: "Doctor to remove is not registered" });
     }
 
+    if (currentDoctorIds.includes(String(addId))) {
+      return res.status(409).json({ msg: "Doctor already registered" });
+    }
+
+    const nextDoctorIds = currentDoctorIds.filter((id) => id !== String(removeId));
+    nextDoctorIds.push(addId);
+
+    if (nextDoctorIds.length > MAX_DOCTORS) {
+      return res.status(400).json({
+        msg: `You can only register up to ${MAX_DOCTORS} doctors.`,
+        limitReached: true,
+      });
+    }
+
+    user.registeredDoctors = nextDoctorIds;
     await user.save();
     await user.populate("registeredDoctors", "name specialization hospital experience contact email");
     await cacheDel(

@@ -5,13 +5,19 @@ import App from './App.jsx'
 import { BrowserRouter } from 'react-router'
 import { GoogleOAuthProvider } from "@react-oauth/google";
 
+const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim();
+const app = googleClientId ? (
+  <GoogleOAuthProvider clientId={googleClientId}>
+    <App />
+  </GoogleOAuthProvider>
+) : (
+  <App />
+);
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
-      {/* Set VITE_GOOGLE_CLIENT_ID in Frontend/.env to enable Google OAuth */}
-      <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ""}>
-        <App />
-      </GoogleOAuthProvider>
+      {app}
     </BrowserRouter>
   </StrictMode>
 )

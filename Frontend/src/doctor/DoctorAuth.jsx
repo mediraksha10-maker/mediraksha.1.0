@@ -18,8 +18,8 @@ const DoctorAuth = () => {
         password,
       });
 
-      toast.success("Request sent for verification 🩺");
-      await handleLogin(); // auto-login (if allowed)
+      toast.success("Request sent for verification. Please wait for approval before logging in.");
+      setsu(false);
     } catch (error) {
       toast.error(
         error.response?.data?.message ||

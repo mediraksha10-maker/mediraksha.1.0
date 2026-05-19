@@ -19,6 +19,8 @@ const normalizeDateOnly = (value) => {
   return date;
 };
 
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 const toPatientAppointmentDTO = (appointment) => {
   const doctorName = appointment.doctorName;
   const speciality = appointment.speciality;
@@ -72,7 +74,7 @@ export const bookAppointment = async (req, res) => {
       return res.status(400).json({ msg: "Invalid appointmentDate" });
     }
 
-    const doctor = await Doctor.findById(doctorId);
+    const doctor = await Doctor.findOne({ _id: doctorId, isVerified: true });
     if (!doctor) {
       return res.status(404).json({ msg: "Doctor not found" });
     }
@@ -182,11 +184,13 @@ export const cancelAppointment = async (req, res) => {
 export const searchDoctors = async (req, res) => {
   try {
     const { name, specialization } = req.query;
-    const filter = {};
-    if (name) filter.name = { $regex: name, $options: "i" };
-    if (specialization) filter.specialization = { $regex: specialization, $options: "i" };
+    const filter = { isVerified: true };
+    if (name?.trim()) filter.name = { $regex: escapeRegex(name.trim()), $options: "i" };
+    if (specialization?.trim()) {
+      filter.specialization = { $regex: escapeRegex(specialization.trim()), $options: "i" };
+    }
 
-    const doctors = await Doctor.find(filter).select("name specialization hospital");
+    const doctors = await Doctor.find(filter).select("name specialization hospital").limit(50);
     res.status(200).json(doctors);
   } catch (err) {
     console.error(err);

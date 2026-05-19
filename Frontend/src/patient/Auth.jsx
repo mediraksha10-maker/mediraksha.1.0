@@ -12,6 +12,7 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const googleLoginEnabled = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim());
 
   // 🔹 Signup
   const handleSignup = async () => {
@@ -55,6 +56,26 @@ const Auth = () => {
         err.response?.data?.message ||
         "Wrong username or password"
       );
+    }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    try {
+      const res = await axiosInstance.post("/auth/google", {
+        token: credentialResponse.credential,
+      });
+
+      toast.success("Logged in with Google");
+
+      const data = res.data;
+
+      if (!data.gender || parseAge(data.age) === null || !isValidPhoneNumber(data.phoneNumber)) {
+        window.location.href = "/details";
+      } else {
+        window.location.href = "/";
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.msg || "Google login failed");
     }
   };
 
@@ -115,32 +136,18 @@ const Auth = () => {
                 Sign Up
               </button>
             </form>
-            <div className="divider">OR</div>
+            {googleLoginEnabled && (
+              <>
+                <div className="divider">OR</div>
 
-            <GoogleLogin
-              onSuccess={async (credentialResponse) => {
-                try {
-                  const res = await axiosInstance.post("/auth/google", {
-                    token: credentialResponse.credential,
-                  });
-
-                  toast.success("Logged in with Google");
-
-                  const data = res.data;
-
-                  if (!data.gender || parseAge(data.age) === null || !isValidPhoneNumber(data.phoneNumber)) {
-                    window.location.href = "/details";
-                  } else {
-                    window.location.href = "/";
-                  }
-                } catch {
-                  toast.error("Google login failed");
-                }
-              }}
-              onError={() => {
-                toast.error("Google login failed");
-              }}
-            />
+                <GoogleLogin
+                  onSuccess={handleGoogleSuccess}
+                  onError={() => {
+                    toast.error("Google login failed");
+                  }}
+                />
+              </>
+            )}
 
 
             <p className="justify-self-start cursor-pointer mt-2">
@@ -203,32 +210,18 @@ const Auth = () => {
               Log In
             </button>
           </form>
-          <div className="divider">OR</div>
+          {googleLoginEnabled && (
+            <>
+              <div className="divider">OR</div>
 
-          <GoogleLogin
-            onSuccess={async (credentialResponse) => {
-              try {
-                const res = await axiosInstance.post("/auth/google", {
-                  token: credentialResponse.credential,
-                });
-
-                toast.success("Logged in with Google");
-
-                const data = res.data;
-
-                if (!data.gender || parseAge(data.age) === null || !isValidPhoneNumber(data.phoneNumber)) {
-                  window.location.href = "/details";
-                } else {
-                  window.location.href = "/";
-                }
-              } catch {
-                toast.error("Google login failed");
-              }
-            }}
-            onError={() => {
-              toast.error("Google login failed");
-            }}
-          />
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={() => {
+                  toast.error("Google login failed");
+                }}
+              />
+            </>
+          )}
 
 
           <p

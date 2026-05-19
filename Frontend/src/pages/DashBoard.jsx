@@ -36,16 +36,15 @@ export default function Dashboard() {
       const res = await axiosInstance.get("/home");
       const data = res.data;
       setName(data.name || "Sign up to access features");
-    } catch (error) {
+    } catch {
       // console.error(error.response?.data?.msg || "Error fetching user details");
     }
   };
   const getDoctor = async () => {
     try {
-      const res = await axiosInstance.get('/doctor');
-      const data = res.data;
+      await axiosInstance.get('/doctor');
       window.location.href = '/doctordash';
-    } catch (error) {
+    } catch {
       // console.error(error.response?.data?.msg || "Error fetching user details");
     }
   }

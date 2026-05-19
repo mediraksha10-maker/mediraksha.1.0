@@ -1,13 +1,9 @@
 import doctor from '../models/Doctor.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { getAuthCookieOptions } from '../utils/cookieOptions.js';
 
-const COOKIE_OPTIONS = () => ({
-  httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-});
+const MIN_PASSWORD_LENGTH = 8;
 
 // sign up
 export async function createDoctor(req, res) {
@@ -18,6 +14,10 @@ export async function createDoctor(req, res) {
       return res.status(400).json({ msg: 'doctorId and password are required' });
     }
 
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      return res.status(400).json({ msg: `Password must be at least ${MIN_PASSWORD_LENGTH} characters` });
+    }
+
     const userExists = await doctor.findOne({ doctorId: doctorId.trim() });
     if (userExists) return res.status(400).json({ msg: 'Doctor already exists' });
 
@@ -25,12 +25,9 @@ export async function createDoctor(req, res) {
     const newUser = new doctor({ doctorId: doctorId.trim(), password: hashedPassword });
     await newUser.save();
 
-    const token = jwt.sign({ id: newUser._id, role: 'doctor' }, process.env.JWT_SECRET, {
-      expiresIn: '2d',
+    res.status(201).json({
+      msg: 'Doctor registration submitted. Please wait for admin verification before logging in.',
     });
-
-    res.cookie('token', token, COOKIE_OPTIONS());
-    res.status(201).json({ msg: 'Doctor created successfully' });
   } catch (error) {
     console.error('createDoctor error:', error);
     res.status(500).json({ message: 'Internal Server error' });
@@ -62,7 +59,7 @@ export async function getDoctor(req, res) {
       expiresIn: '2d',
     });
 
-    res.cookie('token', token, COOKIE_OPTIONS());
+    res.cookie('token', token, getAuthCookieOptions());
     res.json({ msg: 'Login successful' });
   } catch (error) {
     console.error('getDoctor error:', error);
@@ -74,9 +71,7 @@ export const logout = (_req, res) => {
   // Must pass the same cookie attributes used when the cookie was set,
   // otherwise the browser ignores the clear request.
   res.clearCookie('token', {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+    ...getAuthCookieOptions({ includeMaxAge: false }),
   });
   res.json({ msg: 'Logged out' });
 };

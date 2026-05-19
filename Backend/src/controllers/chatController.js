@@ -20,6 +20,10 @@ export const chatWithAI = async (req, res) => {
       return res.status(400).json({ error: "Message is required" });
     }
 
+    if (message.trim().length > 1000) {
+      return res.status(400).json({ error: "Message must be 1000 characters or less" });
+    }
+
     const response = await client.chat.completions.create({
       model: "llama-3.1-8b-instant",
       messages: [

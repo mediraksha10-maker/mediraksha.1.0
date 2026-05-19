@@ -39,7 +39,7 @@ export default function AiHealthChatbot() {
       };
 
       setMessages((prev) => [...prev, aiMessage]);
-    } catch (error) {
+    } catch {
       setMessages((prev) => [
         ...prev,
         {
