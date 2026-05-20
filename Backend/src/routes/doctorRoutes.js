@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 import doctor from '../models/Doctor.js';
 
 import { getMyPatients } from "../controllers/doctorController.js";
-import { getDoctorAppointments, updateAppointmentStatus } from "../controllers/appointmentController.js";
+import { getDoctorAppointments } from "../controllers/appointmentController.js";
 import { cacheDel, cacheDelByPrefix, cacheGet, cacheSet } from "../redis/cache.js";
 import { isNonEmptyString, parseAge } from "../utils/validation.js";
 
@@ -116,7 +116,6 @@ router.patch('/update', async (req, res) => {
 
 // appointments
 router.get("/appointments", getDoctorAppointments);
-router.patch("/appointments/:id", updateAppointmentStatus);
 router.get("/patients", getMyPatients);
 
 export default router;

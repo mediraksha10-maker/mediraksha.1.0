@@ -3,19 +3,23 @@ import axiosInstance from "../api/axios";
 import { CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, User, Calendar, FileText } from "lucide-react";
 
 const STATUS_STYLE = {
-  pending:   { badge: "bg-warning/10 text-warning border-warning/20", icon: <Clock size={14} />, border: "border-l-warning" },
   confirmed: { badge: "bg-success/10 text-success border-success/20", icon: <CheckCircle size={14} />, border: "border-l-success" },
   cancelled: { badge: "bg-error/10 text-error border-error/20",       icon: <XCircle size={14} />, border: "border-l-error" },
 };
 
-const FILTERS = ["all", "pending", "confirmed", "cancelled"];
+const DEFAULT_STATUS_STYLE = {
+  badge: "bg-base-200 text-base-content/70 border-base-300",
+  icon: <Calendar size={14} />,
+  border: "border-l-base-300",
+};
+
+const FILTERS = ["all", "confirmed", "cancelled"];
 
 export default function MeetingRequests() {
   const [meetings, setMeetings]   = useState([]);
   const [loading, setLoading]     = useState(true);
   const [filter, setFilter]       = useState("all");
   const [expanded, setExpanded]   = useState(null);
-  const [acting, setActing]       = useState(null);
 
   useEffect(() => {
     fetchMeetings();
@@ -33,25 +37,12 @@ export default function MeetingRequests() {
     }
   };
 
-  const handleAction = async (id, status) => {
-    setActing(id);
-    try {
-      await axiosInstance.patch(`/doctor/appointments/${id}`, { status });
-      await fetchMeetings();
-    } catch (err) {
-      alert(err.response?.data?.msg || "Action failed.");
-    } finally {
-      setActing(null);
-    }
-  };
-
   const filtered = filter === "all"
     ? meetings
     : meetings.filter((m) => m.status === filter);
 
   const counts = {
     all:       meetings.length,
-    pending:   meetings.filter((m) => m.status === "pending").length,
     confirmed: meetings.filter((m) => m.status === "confirmed").length,
     cancelled: meetings.filter((m) => m.status === "cancelled").length,
   };
@@ -61,7 +52,7 @@ export default function MeetingRequests() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-base-content tracking-tight">Appointment Requests</h2>
-          <p className="text-sm text-base-content/60">Manage your patient appointments and schedules.</p>
+          <p className="text-sm text-base-content/60">View your confirmed and cancelled patient appointments.</p>
         </div>
         <button
           onClick={fetchMeetings}
@@ -110,8 +101,7 @@ export default function MeetingRequests() {
         <div className="space-y-4">
           {filtered.map((m) => {
             const isExpanded = expanded === m._id;
-            const isActing   = acting === m._id;
-            const { badge, icon, border } = STATUS_STYLE[m.status];
+            const { badge, icon, border } = STATUS_STYLE[m.status] || DEFAULT_STATUS_STYLE;
 
             return (
               <div
@@ -190,35 +180,11 @@ export default function MeetingRequests() {
                       </div>
                     </div>
 
-                    {/* Actions */}
-                    {m.status === "pending" && (
-                      <div className="flex gap-3 justify-end mt-6 pt-4 border-t border-base-200 border-dashed">
-                        <button
-                          className="btn btn-outline btn-error rounded-full px-6 shadow-sm hover:shadow-md transition-all"
-                          disabled={isActing}
-                          onClick={() => handleAction(m._id, "cancelled")}
-                        >
-                          {isActing ? <span className="loading loading-spinner loading-xs" /> : <XCircle size={16} />}
-                          Deny Request
-                        </button>
-                        <button
-                          className="btn btn-success rounded-full px-6 shadow-md shadow-success/20 hover:shadow-lg hover:shadow-success/30 transition-all text-white"
-                          disabled={isActing}
-                          onClick={() => handleAction(m._id, "confirmed")}
-                        >
-                          {isActing ? <span className="loading loading-spinner loading-xs" /> : <CheckCircle size={16} />}
-                          Approve Slot
-                        </button>
-                      </div>
-                    )}
-
-                    {m.status !== "pending" && (
-                      <div className="mt-6 pt-4 border-t border-base-200 border-dashed flex justify-end">
-                        <p className="text-sm text-base-content/50 italic flex items-center gap-1.5">
-                          {icon} This appointment was automatically marked as {m.status}.
-                        </p>
-                      </div>
-                    )}
+                    <div className="mt-6 pt-4 border-t border-base-200 border-dashed flex justify-end">
+                      <p className="text-sm text-base-content/50 italic flex items-center gap-1.5">
+                        {icon} This appointment is {m.status}.
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>

@@ -6,6 +6,7 @@ import { cacheDel, cacheGet, cacheSet } from "../redis/cache.js";
 
 const MAX_DOCTORS = 3;
 const MAX_SEARCH_LIMIT = 50;
+const DOCTOR_VISIBLE_APPOINTMENT_STATUSES = ["confirmed", "cancelled"];
 
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -14,6 +15,14 @@ const parseSearchLimit = (value) => {
   if (!Number.isInteger(parsed) || parsed < 1) return 20;
   return Math.min(parsed, MAX_SEARCH_LIMIT);
 };
+
+const filterVisiblePatientAppointments = (patients) =>
+  patients.map((patient) => ({
+    ...patient,
+    appointments: (patient.appointments || []).filter((appointment) =>
+      DOCTOR_VISIBLE_APPOINTMENT_STATUSES.includes(appointment.status)
+    ),
+  }));
 
 // GET /api/home/doctors?name=&specialization=
 export const searchDoctor = async (req, res) => {
@@ -208,7 +217,7 @@ export const getMyPatients = async (req, res) => {
 
     const cachedPatients = await cacheGet(cacheKey);
     if (cachedPatients) {
-      return res.status(200).json(cachedPatients);
+      return res.status(200).json(filterVisiblePatientAppointments(cachedPatients));
     }
 
     // All users who registered this doctor (array field now)
@@ -220,6 +229,7 @@ export const getMyPatients = async (req, res) => {
         const appointments = await Appointment.find({
           doctorId,
           patientId: patient._id,
+          status: { $in: DOCTOR_VISIBLE_APPOINTMENT_STATUSES },
         })
           .select("appointmentDate status reasonOfAppointment")
           .sort({ appointmentDate: -1 })
