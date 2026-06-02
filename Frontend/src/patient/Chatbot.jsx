@@ -29,7 +29,7 @@ export default function AiHealthChatbot() {
     setLoading(true);
 
     try {
-      const res = await axiosInstance.post("/auth/chat", {
+      const res = await axiosInstance.post("/home/chat", {
         message: userMessage.text,
       });
 
@@ -39,7 +39,7 @@ export default function AiHealthChatbot() {
       };
 
       setMessages((prev) => [...prev, aiMessage]);
-    } catch (error) {
+    } catch {
       setMessages((prev) => [
         ...prev,
         {

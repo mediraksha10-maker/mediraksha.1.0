@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Calendar, Clock, Hospital } from "lucide-react";
+import { Calendar, Clock, Hospital, CheckCircle2, User as UserIcon } from "lucide-react";
 import axiosInstance from "../api/axios";
 
 export default function AddAvailability() {
@@ -123,45 +123,64 @@ export default function AddAvailability() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="space-y-10">
 
-      <main className="grow max-w-7xl mx-auto px-4 py-8 space-y-10">
-        <h1 className="text-3xl font-bold text-base-content">
-          Doctor Availability
+      {/* Header */}
+      <div className="flex flex-col gap-1">
+        <h1 className="text-3xl font-extrabold text-base-content tracking-tight">
+          Availability Management
         </h1>
+        <p className="text-base-content/60">Set your schedule and view active doctors.</p>
+      </div>
 
         <section>
           <h2 className="text-xl font-semibold mb-4">Your Published Slots</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {doctorsWithGroupedSlots.map((doc) => (
-              <div key={doc._id} className="card bg-base-100 shadow-lg">
-                <div className="card-body">
-                  <h3 className="card-title">{doc.name}</h3>
+              <div key={doc._id} className="card bg-base-100 shadow-lg border border-base-200 hover:shadow-xl transition-shadow duration-300">
+                <div className="card-body p-6">
 
-                  <p className="flex items-center gap-2 text-sm">
-                    <Hospital size={16} /> {doc.hospital}
-                  </p>
+                  {/* Doctor Info Header */}
+                  <div className="flex items-start gap-4 mb-4">
+                    <div className="avatar placeholder">
+                      <div className="bg-primary/10 text-primary rounded-full w-12 h-12 ring-1 ring-primary/20">
+                        <UserIcon size={24} />
+                      </div>
+                    </div>
+                    <div>
+                      <h3 className="card-title text-lg">{doc.name}</h3>
+                      <p className="text-sm text-primary font-medium">{doc.specialization}</p>
+                      <p className="flex items-center gap-1.5 text-xs text-base-content/60 mt-1">
+                        <Hospital size={14} /> {doc.hospital}
+                      </p>
+                    </div>
+                  </div>
 
                     <p className="text-sm text-base-content/70">
                       {doc.specialization}
                     </p>
 
-                  <div className="mt-3">
-                    <p className="font-medium flex items-center gap-2">
-                      <Clock size={16} /> Availability
+                  {/* Availability List */}
+                  <div>
+                    <p className="font-semibold text-sm flex items-center gap-2 mb-3 text-base-content/80">
+                      <Clock size={15} /> Published Availability
                     </p>
+
                     {doc.slotGroups.length === 0 ? (
-                      <p className="text-sm text-base-content/70 mt-2">
-                        No slots available
+                      <p className="text-sm text-base-content/50 italic bg-base-200 p-3 rounded-lg text-center">
+                        No active slots
                       </p>
                     ) : (
-                      <div className="mt-2 space-y-3">
+                      <div className="space-y-3 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
                         {doc.slotGroups.map((group) => (
-                          <div key={group.date} className="bg-base-200 rounded-lg p-3">
-                            <p className="text-sm font-semibold">{group.displayDate}</p>
-                            <div className="flex flex-wrap gap-2 mt-2">
+                          <div key={group.date} className="bg-base-200/50 rounded-xl p-3 border border-base-200">
+                            <p className="text-sm font-bold text-base-content/90 mb-2">{group.displayDate}</p>
+                            <div className="flex flex-wrap gap-2">
                               {group.times.map((time) => (
-                                <span key={`${group.date}-${time}`} className="badge badge-outline">
+                                <span
+                                  key={`${group.date}-${time}`}
+                                  className="px-2.5 py-1 text-xs font-medium bg-base-100 border border-base-300 rounded-md text-base-content/80 shadow-sm"
+                                >
                                   {time}
                                 </span>
                               ))}
@@ -175,49 +194,9 @@ export default function AddAvailability() {
               </div>
             ))}
           </div>
-        </section>
+        )}
+      </section>
 
-        {/* Doctor View */}
-        <section className="bg-base-200 p-6 rounded-2xl shadow">
-          <h2 className="text-xl font-semibold mb-4">
-            Doctor: Add Availability
-          </h2>
-
-          <div className="flex flex-col gap-4">
-            <label className="form-control w-full md:w-1/3">
-              <div className="label">
-                <span className="label-text">Select Date</span>
-              </div>
-              <input
-                type="date"
-                className="input input-bordered w-full"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-              />
-            </label>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-              {TIMES.map((time) => (
-                <button
-                  key={time}
-                  type="button"
-                  onClick={() => toggleTime(time)}
-                  className={`btn btn-outline justify-start ${
-                    selectedTimes.includes(time) ? "btn-primary" : ""
-                  }`}
-                >
-                  {time}
-                </button>
-              ))}
-            </div>
-
-            <button onClick={createSlots} className="btn btn-primary w-fit">
-              <Calendar size={18} />
-              Publish Slots
-            </button>
-          </div>
-        </section>
-      </main>
     </div>
   );
 }

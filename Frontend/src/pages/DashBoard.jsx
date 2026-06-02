@@ -38,7 +38,7 @@ export default function Dashboard() {
       const res = await axiosInstance.get("/home");
       const data = res.data;
       setName(data.name || "Sign up to access features");
-    } catch (error) {
+    } catch {
       // console.error(error.response?.data?.msg || "Error fetching user details");
     }
   };

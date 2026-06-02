@@ -4,7 +4,6 @@ import { Link } from "react-router";
 import axiosInstance from "../api/axios"; // adjust path
 
 const STATUS_STYLE = {
-  pending:   "badge-warning",
   confirmed: "badge-success",
   cancelled: "badge-error",
 };
@@ -202,7 +201,7 @@ function AppointmentRow({ appt }) {
             {appt.reason}
           </span>
         )}
-        <span className={`badge badge-sm ${STATUS_STYLE[appt.status]}`}>
+        <span className={`badge badge-sm ${STATUS_STYLE[appt.status] || "badge-ghost"}`}>
           {appt.status}
         </span>
       </div>

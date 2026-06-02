@@ -9,6 +9,49 @@ conn.once("open", () => {
   bucket = new GridFSBucket(conn.db, { bucketName: "uploads" });
 });
 
+const hasAllowedFileSignature = (file) => {
+  const bytes = file.buffer;
+  if (!Buffer.isBuffer(bytes) || bytes.length < 4) return false;
+
+  if (file.mimetype === "application/pdf") {
+    return bytes.subarray(0, 4).toString("ascii") === "%PDF";
+  }
+
+  if (file.mimetype === "image/jpeg") {
+    return bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  }
+
+  if (file.mimetype === "image/png") {
+    return bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+  }
+
+  if (file.mimetype === "image/gif") {
+    const header = bytes.subarray(0, 6).toString("ascii");
+    return header === "GIF87a" || header === "GIF89a";
+  }
+
+  if (file.mimetype === "image/webp") {
+    return bytes.subarray(0, 4).toString("ascii") === "RIFF"
+      && bytes.subarray(8, 12).toString("ascii") === "WEBP";
+  }
+
+  if (file.mimetype === "image/bmp") {
+    return bytes.subarray(0, 2).toString("ascii") === "BM";
+  }
+
+  return false;
+};
+
+const sanitizeFileName = (value) => {
+  const fallback = "report";
+  const cleaned = String(value || fallback)
+    .replace(/[\r\n"]/g, "")
+    .replace(/[\\/]/g, "_")
+    .trim();
+
+  return cleaned || fallback;
+};
+
 export async function uploadFile(req, res) {
   try {
     if (!bucket) {
@@ -17,6 +60,10 @@ export async function uploadFile(req, res) {
 
     if (!req.file) {
       return res.status(400).json({ msg: "No file received" });
+    }
+
+    if (!hasAllowedFileSignature(req.file)) {
+      return res.status(400).json({ msg: "File content does not match the selected file type" });
     }
 
     const { title, category, visibility = "private", doctorId = "", uploadedBy = "patient" } = req.body;
@@ -31,7 +78,8 @@ export async function uploadFile(req, res) {
     }
 
     const generatedReportId = `RPT-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
-    const uploadStream = bucket.openUploadStream(req.file.originalname, {
+    const safeOriginalFileName = sanitizeFileName(req.file.originalname);
+    const uploadStream = bucket.openUploadStream(safeOriginalFileName, {
       contentType: req.file.mimetype,
       metadata: {
         userId: req.user,
@@ -64,7 +112,7 @@ export async function uploadFile(req, res) {
       fileSize: req.file.size,
       fileId: gridFsFileId,
       visibility,
-      originalFileName: req.file.originalname,
+      originalFileName: safeOriginalFileName,
       mimeType: req.file.mimetype,
     });
 
@@ -89,6 +137,11 @@ export async function getAllFiles(req, res) {
 
 export async function getFileById(req, res) {
   try {
+    // Bug 11: Validate ObjectId before DB query to avoid CastError / 500 leak
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ msg: "Invalid file ID" });
+    }
+
     if (!bucket) {
       return res.status(503).json({ msg: "File service unavailable" });
     }
@@ -99,11 +152,15 @@ export async function getFileById(req, res) {
     }).lean();
     if (!report) return res.status(404).json({ msg: "File not found" });
 
+    if (!mongoose.isValidObjectId(report.fileId)) {
+      return res.status(500).json({ msg: "File record is corrupted" });
+    }
+
     const fileObjectId = new mongoose.Types.ObjectId(report.fileId);
     const file = await bucket
       .find({ _id: fileObjectId })
       .toArray();
-    if (!file.length) return res.status(404).json({ msg: "File not found" });
+    if (!file.length) return res.status(404).json({ msg: "File not found in storage" });
 
     res.setHeader(
       "Content-Type",
@@ -111,7 +168,7 @@ export async function getFileById(req, res) {
     );
     res.setHeader(
       "Content-Disposition",
-      `inline; filename="${report.originalFileName || file[0].filename || report.title}"`
+      `inline; filename="${sanitizeFileName(report.originalFileName || file[0].filename || report.title)}"`
     );
     const downloadStream = bucket.openDownloadStream(file[0]._id);
     downloadStream.pipe(res);
@@ -121,9 +178,13 @@ export async function getFileById(req, res) {
   }
 }
 
-
 export async function deleteFile(req, res) {
   try {
+    // Bug 11: Validate ObjectId before DB query
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ msg: "Invalid file ID" });
+    }
+
     const report = await Report.findOne({
       _id: req.params.id,
       patientId: String(req.user),

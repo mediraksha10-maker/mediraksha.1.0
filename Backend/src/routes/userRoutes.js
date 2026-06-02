@@ -5,6 +5,7 @@ import multer from "multer";
 import { uploadFile, getAllFiles, getFileById, deleteFile } from "../controllers/uploadController.js";
 import { bookAppointment, getMyAppointments, cancelAppointment } from "../controllers/appointmentController.js";
 import { searchDoctor, getMyDoctors, addMyDoctor, removeMyDoctor, swapMyDoctor } from "../controllers/doctorController.js";
+import { chatWithAI } from "../controllers/chatController.js";
 import User from "../models/User.js";
 import { cacheDel, cacheGet, cacheSet } from "../redis/cache.js";
 import {
@@ -158,5 +159,9 @@ router.get("/my-doctors", getMyDoctors);                 // Get all registered d
 router.post("/my-doctors", addMyDoctor);                 // Add a doctor (max 3)
 router.patch("/my-doctors/swap", swapMyDoctor);          // Swap one out  ← must be before :doctorId
 router.delete("/my-doctors/:doctorId", removeMyDoctor);  // Remove one doctor
+
+/* ───────────── AI CHAT ───────────── */
+
+router.post("/chat", chatWithAI); // patient-authenticated AI health assistant
 
 export default router;

@@ -4,6 +4,25 @@ import Appointment from "../models/Appointment.js";
 import Doctor from "../models/Doctor.js";
 import { cacheDel } from "../redis/cache.js";
 
+const normalizeDateString = (value) => {
+  if (typeof value !== "string") return null;
+
+  const trimmed = value.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return null;
+
+  const parsed = new Date(`${trimmed}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return null;
+
+  return trimmed;
+};
+
+const isPastDateString = (value) => {
+  const date = new Date(`${value}T00:00:00`);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return date < today;
+};
+
 // POST /api/slots/create
 export const createSlots = async (req, res) => {
   try {
@@ -21,8 +40,13 @@ export const createSlots = async (req, res) => {
       });
     }
 
-    if (!date || typeof date !== "string") {
-      return res.status(400).json({ message: "date is required", msg: "date is required" });
+    const normalizedDate = normalizeDateString(date);
+    if (!normalizedDate) {
+      return res.status(400).json({ message: "Use a valid date in YYYY-MM-DD format", msg: "Use a valid date in YYYY-MM-DD format" });
+    }
+
+    if (isPastDateString(normalizedDate)) {
+      return res.status(400).json({ message: "Cannot create slots in the past", msg: "Cannot create slots in the past" });
     }
 
     if (!Array.isArray(times) || times.length === 0) {
@@ -40,7 +64,6 @@ export const createSlots = async (req, res) => {
       return res.status(400).json({ message: "No valid time slots provided", msg: "No valid time slots provided" });
     }
 
-    const normalizedDate = date.trim();
     const existingSlots = await Slot.find({
       doctorId: authDoctorId,
       date: normalizedDate,
@@ -82,6 +105,12 @@ export const createSlots = async (req, res) => {
     });
   } catch (error) {
     console.error("createSlots error:", error);
+    if (error?.code === 11000) {
+      return res.status(409).json({
+        message: "One or more selected slots already exist for this date",
+        msg: "One or more selected slots already exist for this date",
+      });
+    }
     return res.status(500).json({ message: "Server error", msg: "Server error" });
   }
 };
@@ -112,6 +141,7 @@ export const getDoctorsWithSlots = async (_req, res) => {
           preserveNullAndEmptyArrays: true,
         },
       },
+      { $match: { "doctor.isVerified": true } },
       {
         $project: {
           _id: 1,
@@ -188,11 +218,17 @@ export const getDoctorSlotsByDate = async (req, res) => {
       return res.status(400).json({ message: "Invalid doctorId", msg: "Invalid doctorId" });
     }
 
-    if (!date || typeof date !== "string") {
-      return res.status(400).json({ message: "date is required", msg: "date is required" });
+    const normalizedDate = normalizeDateString(date);
+    if (!normalizedDate) {
+      return res.status(400).json({ message: "Use a valid date in YYYY-MM-DD format", msg: "Use a valid date in YYYY-MM-DD format" });
     }
 
-    const rawSlots = await Slot.find({ doctorId, date: date.trim(), status: "available" })
+    const verifiedDoctor = await Doctor.exists({ _id: doctorId, isVerified: true });
+    if (!verifiedDoctor) {
+      return res.status(404).json({ message: "Doctor not found", msg: "Doctor not found" });
+    }
+
+    const rawSlots = await Slot.find({ doctorId, date: normalizedDate, status: "available" })
       .sort({ time: 1 })
       .lean();
 
@@ -263,7 +299,7 @@ export const bookSlotAppointment = async (req, res) => {
       });
     }
 
-    const doctor = await Doctor.findById(doctorId).lean();
+    const doctor = await Doctor.findOne({ _id: doctorId, isVerified: true }).lean();
     if (!doctor) {
       return res.status(404).json({ message: "Doctor not found", msg: "Doctor not found" });
     }
@@ -309,6 +345,12 @@ export const bookSlotAppointment = async (req, res) => {
       appointment = await Appointment.create(appointmentData);
     } catch (createError) {
       await Slot.findByIdAndUpdate(bookedSlot._id, { $set: { status: "available" } });
+      if (createError?.code === 11000) {
+        return res.status(409).json({
+          message: "You already have an appointment with this doctor on this date",
+          msg: "You already have an appointment with this doctor on this date",
+        });
+      }
       throw createError;
     }
 

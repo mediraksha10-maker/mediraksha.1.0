@@ -1,9 +1,11 @@
 import Appointment from "../models/Appointment.js";
 import Doctor from "../models/Doctor.js";
 import Slot from "../models/Slot.js";
+import mongoose from "mongoose";
 import { cacheDel, cacheGet, cacheSet } from "../redis/cache.js";
 
 const LEGACY_DEFAULT_START_TIME = "09:00";
+const DOCTOR_VISIBLE_STATUSES = ["confirmed", "cancelled"];
 
 const getStartTime = (slotTime) => {
   if (!slotTime || typeof slotTime !== "string") return LEGACY_DEFAULT_START_TIME;
@@ -17,6 +19,8 @@ const normalizeDateOnly = (value) => {
   date.setHours(0, 0, 0, 0);
   return date;
 };
+
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const toPatientAppointmentDTO = (appointment) => {
   const doctorName = appointment.doctorName;
@@ -49,6 +53,9 @@ const toDoctorAppointmentDTO = (appointment) => ({
   reason: appointment.reasonOfAppointment,
 });
 
+const filterDoctorVisibleAppointments = (appointments) =>
+  appointments.filter((appointment) => DOCTOR_VISIBLE_STATUSES.includes(appointment.status));
+
 // POST /api/user/appointments — book an appointment
 export const bookAppointment = async (req, res) => {
   try {
@@ -61,12 +68,17 @@ export const bookAppointment = async (req, res) => {
       });
     }
 
+    // Bug 9: Validate doctorId is a real ObjectId before DB query
+    if (!mongoose.isValidObjectId(doctorId)) {
+      return res.status(400).json({ msg: "Invalid doctorId" });
+    }
+
     const normalizedAppointmentDate = normalizeDateOnly(appointmentDate);
     if (!normalizedAppointmentDate) {
       return res.status(400).json({ msg: "Invalid appointmentDate" });
     }
 
-    const doctor = await Doctor.findById(doctorId);
+    const doctor = await Doctor.findOne({ _id: doctorId, isVerified: true });
     if (!doctor) {
       return res.status(404).json({ msg: "Doctor not found" });
     }
@@ -90,6 +102,7 @@ export const bookAppointment = async (req, res) => {
       hospitalName: doctor.hospital?.trim() || "Unknown Hospital",
       appointmentDate: normalizedAppointmentDate,
       reasonOfAppointment: reasonOfAppointment.trim(),
+      status: "confirmed",
     });
 
     await cacheDel(
@@ -139,11 +152,25 @@ export const cancelAppointment = async (req, res) => {
       return res.status(404).json({ msg: "Appointment not found" });
     }
 
+    // Bug 10: Save the appointment status change FIRST before freeing the slot.
+    // This prevents the slot from being freed if the appointment save fails.
     appointment.status = "cancelled";
     await appointment.save();
+
+    // Free the slot only after the appointment is durably cancelled.
     if (appointment.slotId) {
-      await Slot.findByIdAndUpdate(appointment.slotId, { status: "available" });
+      try {
+        await Slot.findByIdAndUpdate(appointment.slotId, { status: "available" });
+      } catch (slotErr) {
+        // Log the failure but don't roll back — the appointment is already cancelled.
+        // The slot will be stuck as "booked" but the appointment won't be in limbo.
+        console.error(
+          `cancelAppointment: failed to free slot ${appointment.slotId}:`,
+          slotErr.message
+        );
+      }
     }
+
     await cacheDel(
       `cache:user:appointments:${req.user}`,
       `cache:doctor:appointments:${appointment.doctorId}`,
@@ -162,11 +189,13 @@ export const cancelAppointment = async (req, res) => {
 export const searchDoctors = async (req, res) => {
   try {
     const { name, specialization } = req.query;
-    const filter = {};
-    if (name) filter.name = { $regex: name, $options: "i" };
-    if (specialization) filter.specialization = { $regex: specialization, $options: "i" };
+    const filter = { isVerified: true };
+    if (name?.trim()) filter.name = { $regex: escapeRegex(name.trim()), $options: "i" };
+    if (specialization?.trim()) {
+      filter.specialization = { $regex: escapeRegex(specialization.trim()), $options: "i" };
+    }
 
-    const doctors = await Doctor.find(filter).select("name specialization hospital");
+    const doctors = await Doctor.find(filter).select("name specialization hospital").limit(50);
     res.status(200).json(doctors);
   } catch (err) {
     console.error(err);
@@ -174,19 +203,19 @@ export const searchDoctors = async (req, res) => {
   }
 };
 
-
-
-
-// GET /api/doctor/appointments — all pending requests for this doctor
+// GET /api/doctor/appointments — all appointments for this doctor
 export const getDoctorAppointments = async (req, res) => {
   try {
     const cacheKey = `cache:doctor:appointments:${req.user}`;
     const cachedAppointments = await cacheGet(cacheKey);
     if (cachedAppointments) {
-      return res.status(200).json(cachedAppointments);
+      return res.status(200).json(filterDoctorVisibleAppointments(cachedAppointments));
     }
 
-    const appointments = await Appointment.find({ doctorId: req.user })
+    const appointments = await Appointment.find({
+      doctorId: req.user,
+      status: { $in: DOCTOR_VISIBLE_STATUSES },
+    })
       .populate("patientId", "name age gender phoneNumber")
       .sort({ appointmentDate: 1 })
       .lean();
@@ -194,82 +223,6 @@ export const getDoctorAppointments = async (req, res) => {
     const payload = appointments.map(toDoctorAppointmentDTO);
     await cacheSet(cacheKey, payload, 120);
     res.status(200).json(payload);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ msg: "Server error" });
-  }
-};
-
-// PATCH /api/doctor/appointments/:id — approve or deny
-export const updateAppointmentStatus = async (req, res) => {
-  try {
-    const { status } = req.body; // "confirmed" or "cancelled"
-
-    if (!["confirmed", "cancelled"].includes(status)) {
-      return res.status(400).json({ msg: "Invalid status" });
-    }
-
-    const appointment = await Appointment.findOne({
-      _id: req.params.id,
-      doctorId: req.user,
-    });
-
-    if (!appointment) {
-      return res.status(404).json({ msg: "Appointment not found" });
-    }
-    if (appointment.status !== "pending") {
-      return res.status(409).json({ msg: "Only pending requests can be updated" });
-    }
-
-    appointment.status = status;
-    await appointment.save();
-
-    if (status === "confirmed") {
-      if (appointment.slotId) {
-        await Slot.findByIdAndUpdate(appointment.slotId, { status: "booked" });
-      }
-
-      if (appointment.requestGroupId) {
-        const siblings = await Appointment.find({
-          requestGroupId: appointment.requestGroupId,
-          doctorId: req.user,
-          patientId: appointment.patientId,
-          _id: { $ne: appointment._id },
-          status: "pending",
-        });
-
-        const siblingSlotIds = siblings
-          .map((item) => item.slotId)
-          .filter(Boolean);
-
-        if (siblings.length > 0) {
-          await Appointment.updateMany(
-            { _id: { $in: siblings.map((item) => item._id) } },
-            { $set: { status: "cancelled" } }
-          );
-        }
-
-        if (siblingSlotIds.length > 0) {
-          await Slot.updateMany(
-            { _id: { $in: siblingSlotIds } },
-            { $set: { status: "available" } }
-          );
-        }
-      }
-    }
-
-    if (status === "cancelled" && appointment.slotId) {
-      await Slot.findByIdAndUpdate(appointment.slotId, { status: "available" });
-    }
-
-    await cacheDel(
-      `cache:doctor:appointments:${req.user}`,
-      `cache:user:appointments:${appointment.patientId}`,
-      `cache:doctor:patients:${req.user}`
-    );
-
-    const dto = toDoctorAppointmentDTO(appointment.toObject());
-    res.status(200).json({ msg: `Appointment ${status}`, appointment: dto });
   } catch (err) {
     console.error(err);
     res.status(500).json({ msg: "Server error" });
