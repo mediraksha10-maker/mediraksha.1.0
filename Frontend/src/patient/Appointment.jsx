@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import axiosInstance from "../api/axios";
+import { Link } from "react-router";
+import { ArrowLeft } from "lucide-react";
 
 const BASE_SPECIALITIES = [
   "General Physician",
@@ -197,6 +199,9 @@ export default function BookAppointment() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-10">
       <div className="mb-6">
+        <Link to="/" className="btn btn-ghost btn-circle">
+          <ArrowLeft size={22} />
+        </Link>
         <h1 className="text-3xl font-bold text-[#14532d] mb-1">
           Book Appointment
         </h1>

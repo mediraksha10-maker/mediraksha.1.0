@@ -1,8 +1,11 @@
-import User from '../models/User.js';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import { randomBytes } from 'crypto';
-import { getAuthCookieOptions } from '../utils/cookieOptions.js';
+import User from '../models/User.js'
+import doctor from '../models/Doctor.js'
+import bcrypt from 'bcryptjs'
+import jwt from "jsonwebtoken"
+import dotenv from "dotenv"
+import { getAuthCookieOptions, getClearCookieOptions } from "../utils/cookieOptions.js";
+dotenv.config();
+const JWT_SECRET = process.env.JWT_SECRET;
 
 const MIN_PASSWORD_LENGTH = 8;
 const sanitizeEmail = (email) => email.trim().toLowerCase();
@@ -50,11 +53,25 @@ const verifyGoogleToken = async (token) => {
 
 // sign up
 export async function createUser(req, res) {
-  try {
-    const { name, email, password } = req.body;
+    try {
+        const { name, email, password } = req.body;
+        const userExists = await User.findOne({ email });
+        if (userExists) return res.status(400).json({ msg: 'User already exists' });
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const newUser = new User({ name, email, password: hashedPassword });
+        await newUser.save();
 
-    if (!name?.trim() || !email?.trim() || !password) {
-      return res.status(400).json({ msg: 'name, email and password are required' });
+        const token = jwt.sign({ id: newUser._id }, JWT_SECRET, {
+            expiresIn: "2d",
+        });
+
+        // set cookie
+        res.cookie("token", token, getAuthCookieOptions());
+
+        res.status(201).json({msg:"User created successfully"});
+    } catch (error) {
+        console.log("Error in the app ", error);
+        res.status(500).json({ message: "Internal Server error" });
     }
 
     if (password.length < MIN_PASSWORD_LENGTH) {
@@ -81,11 +98,23 @@ export async function createUser(req, res) {
 
 // sign in
 export async function getUser(req, res) {
-  try {
-    const { email, password } = req.body;
+    try {
+        const { name, email, password } = req.body;
+        const user = await User.findOne({ email });
+        if (!user) return res.status(404).json({ message: "user not found" });
+        const passCorrect = await bcrypt.compare(password, user.password);
+        if (!passCorrect) return res.status(400).json({ msg: 'password not correct' });
 
-    if (!email?.trim() || !password) {
-      return res.status(400).json({ msg: 'email and password are required' });
+        const token = jwt.sign({ id: user._id }, JWT_SECRET, {
+            expiresIn: "2d",
+        });
+
+        res.cookie("token", token, getAuthCookieOptions());
+
+        res.json({ msg: token });
+    } catch (error) {
+        console.log("Error in the app ", error);
+        res.status(500).json({ message: "Internal Server error" });
     }
 
     const user = await User.findOne({ email: sanitizeEmail(email) });
@@ -104,44 +133,8 @@ export async function getUser(req, res) {
   }
 }
 
-export async function googleAuth(req, res) {
-  try {
-    const { token } = req.body;
-
-    if (!token) {
-      return res.status(400).json({ msg: 'Google token is required' });
-    }
-
-    if (!process.env.GOOGLE_CLIENT_ID) {
-      return res.status(503).json({ msg: 'Google login is not configured' });
-    }
-
-    const payload = await verifyGoogleToken(token);
-    const normalizedEmail = sanitizeEmail(payload.email);
-
-    let user = await User.findOne({ email: normalizedEmail });
-    if (!user) {
-      const generatedPassword = randomBytes(32).toString('hex');
-      const hashedPassword = await bcrypt.hash(generatedPassword, 10);
-      user = await User.create({
-        name: payload.name?.trim() || normalizedEmail.split('@')[0],
-        email: normalizedEmail,
-        password: hashedPassword,
-      });
-    }
-
-    const authToken = createPatientToken(user._id);
-    res.cookie('token', authToken, getAuthCookieOptions());
-    res.json(toSafeUserPayload(user));
-  } catch (error) {
-    console.error('googleAuth error:', error.message);
-    res.status(401).json({ msg: 'Google login failed' });
-  }
-}
-
-export const logout = (_req, res) => {
-  res.clearCookie('token', {
-    ...getAuthCookieOptions({ includeMaxAge: false }),
-  });
-  res.json({ msg: 'Logged out' });
+export const logout = (req, res) => {
+  res.clearCookie("token", getClearCookieOptions());
+  res.json({ msg: "Logged out" });
 };
+

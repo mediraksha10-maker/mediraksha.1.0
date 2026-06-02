@@ -1,33 +1,35 @@
-const parseBooleanEnv = (value, fallback) => {
-  if (value === undefined || value === null || value === "") return fallback;
-  return ["1", "true", "yes", "on"].includes(String(value).trim().toLowerCase());
+const isProduction = process.env.NODE_ENV === "production";
+
+const parseBoolean = (value) => {
+  if (value === "true") return true;
+  if (value === "false") return false;
+  return undefined;
 };
 
-const getSameSite = () => {
-  const configured = process.env.COOKIE_SAME_SITE?.trim().toLowerCase();
-  if (["strict", "lax", "none"].includes(configured)) return configured;
-  return process.env.NODE_ENV === "production" ? "strict" : "lax";
-};
+export function getAuthCookieOptions() {
+  const configuredSameSite = process.env.COOKIE_SAMESITE?.toLowerCase();
+  const sameSite = configuredSameSite || (isProduction ? "none" : "lax");
 
-const getSecure = (sameSite) => {
-  if (sameSite === "none") return true;
-  return parseBooleanEnv(
-    process.env.COOKIE_SECURE,
-    process.env.NODE_ENV === "production"
-  );
-};
+  const configuredSecure = parseBoolean(process.env.COOKIE_SECURE);
+  const secure =
+    configuredSecure !== undefined ? configuredSecure : sameSite === "none";
 
-export const getAuthCookieOptions = ({ includeMaxAge = true } = {}) => {
-  const sameSite = getSameSite();
-  const options = {
+  return {
     httpOnly: true,
-    secure: getSecure(sameSite),
+    secure,
     sameSite,
+    path: "/",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
   };
+}
 
-  if (includeMaxAge) {
-    options.maxAge = 7 * 24 * 60 * 60 * 1000;
-  }
+export function getClearCookieOptions() {
+  const { httpOnly, secure, sameSite, path } = getAuthCookieOptions();
 
-  return options;
-};
+  return {
+    httpOnly,
+    secure,
+    sameSite,
+    path,
+  };
+}

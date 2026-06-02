@@ -133,77 +133,8 @@ export default function AddAvailability() {
         <p className="text-base-content/60">Set your schedule and view active doctors.</p>
       </div>
 
-      {/* Doctor View: Add Availability */}
-      <section className="card bg-base-100 shadow-xl border border-base-200/60 overflow-hidden">
-        <div className="bg-primary/5 px-6 py-4 border-b border-primary/10 flex items-center gap-2">
-          <Calendar className="text-primary" size={20} />
-          <h2 className="text-lg font-bold text-primary">Publish New Slots</h2>
-        </div>
-
-        <div className="card-body p-6 md:p-8">
-          <div className="flex flex-col md:flex-row gap-8">
-
-            {/* Left side: Date Picker */}
-            <div className="w-full md:w-1/3 space-y-2">
-              <label className="text-sm font-semibold text-base-content/80">
-                Select Date
-              </label>
-              <input
-                type="date"
-                className="input input-bordered w-full shadow-sm focus:border-primary transition-colors"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-              />
-            </div>
-
-            {/* Right side: Time Slots */}
-            <div className="w-full md:w-2/3 space-y-3">
-              <label className="text-sm font-semibold text-base-content/80">
-                Select Time Slots
-              </label>
-              <div className="flex flex-wrap gap-3">
-                {TIMES.map((time) => {
-                  const isSelected = selectedTimes.includes(time);
-                  return (
-                    <button
-                      key={time}
-                      type="button"
-                      onClick={() => toggleTime(time)}
-                      className={`btn rounded-full border px-6 transition-all duration-200 ${
-                        isSelected
-                          ? "btn-primary shadow-md shadow-primary/30 scale-105"
-                          : "btn-outline border-base-300 text-base-content hover:border-primary/50 hover:bg-base-200"
-                      }`}
-                    >
-                      {isSelected && <CheckCircle2 size={16} className="mr-1" />}
-                      {time}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          <div className="card-actions justify-end mt-8 pt-6 border-t border-base-200">
-            <button
-              onClick={createSlots}
-              className="btn btn-primary px-8 shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform"
-            >
-              Publish Schedule
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* Patient View: Available Doctors */}
-      <section>
-        <h2 className="text-2xl font-bold mb-6 text-base-content">Active Doctors Schedule</h2>
-
-        {doctorsWithGroupedSlots.length === 0 ? (
-          <div className="text-center py-10 bg-base-100 rounded-2xl border border-dashed border-base-300">
-            <p className="text-base-content/50">No doctors currently have published slots.</p>
-          </div>
-        ) : (
+        <section>
+          <h2 className="text-xl font-semibold mb-4">Your Published Slots</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {doctorsWithGroupedSlots.map((doc) => (
               <div key={doc._id} className="card bg-base-100 shadow-lg border border-base-200 hover:shadow-xl transition-shadow duration-300">
@@ -225,7 +156,9 @@ export default function AddAvailability() {
                     </div>
                   </div>
 
-                  <div className="divider my-2 opacity-50" />
+                    <p className="text-sm text-base-content/70">
+                      {doc.specialization}
+                    </p>
 
                   {/* Availability List */}
                   <div>

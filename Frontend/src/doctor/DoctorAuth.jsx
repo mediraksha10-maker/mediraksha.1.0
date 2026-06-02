@@ -4,8 +4,10 @@ import { Link } from "react-router";
 import { ArrowLeft } from "lucide-react";
 import toast from "react-hot-toast";
 import { parseAge } from "../utils/validation";
+import { useNavigate } from "react-router";
 
 const DoctorAuth = () => {
+  const navigate = useNavigate();
   const [su, setsu] = useState(true);
   const [doctorId, setDoctorId] = useState("");
   const [password, setPassword] = useState("");
@@ -43,9 +45,9 @@ const DoctorAuth = () => {
       const data = res.data; 
 
       if (!data.name || !data.hospital || parseAge(data.age) === null) {
-        window.location.href = "/doctordetail";
+        navigate("/doctordetail");
       } else {
-        window.location.href = "/doctordash";
+        navigate("/doctordash");
       }
       
     } catch (error) {

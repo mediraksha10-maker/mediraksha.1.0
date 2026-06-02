@@ -1,6 +1,7 @@
 import { useState } from "react";
 import axiosInstance from "../api/axios";
 import toast from "react-hot-toast";
+import { useNavigate } from "react-router";
 import {
   AGE_MAX,
   AGE_MIN,
@@ -10,6 +11,7 @@ import {
 } from "../utils/validation";
 
 const UserDetails = () => {
+  const navigate = useNavigate();
   const [gender, setGender] = useState("");
   const [age, setAge] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -40,7 +42,7 @@ const UserDetails = () => {
 
       console.log("Details saved:", response.data);
       toast.success("Details submitted successfully!");
-      window.location.href = "/";
+      navigate("/");
     } catch (error) {
       console.error("Error saving details:", error.response?.data || error.message);
       toast.error(error.response?.data?.msg || "Failed to save details");
